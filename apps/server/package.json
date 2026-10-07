@@ -4,12 +4,12 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "tsx watch src/index.ts",
-    "start": "tsx src/index.ts",
+    "dev": "node --env-file=../../.env --conditions=development --watch --import tsx src/index.ts",
+    "start": "node --env-file=../../.env --conditions=development --import tsx src/index.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "vitest run",
-    "db:generate": "drizzle-kit generate",
-    "db:migrate": "drizzle-kit migrate"
+    "test": "node --env-file=../../.env --conditions=development node_modules/vitest/vitest.mjs run",
+    "db:generate": "node --env-file=../../.env node_modules/drizzle-kit/bin.cjs generate",
+    "db:migrate": "node --env-file=../../.env node_modules/drizzle-kit/bin.cjs migrate"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "3.1147.0",
@@ -17,6 +17,7 @@
     "@fastify/cookie": "11.1.2",
     "@fastify/cors": "11.3.0",
     "@fastify/helmet": "13.1.1",
+    "@fastify/multipart": "10.1.2",
     "@fastify/websocket": "11.3.3",
     "@koda/shared": "workspace:*",
     "argon2": "0.45.1",
@@ -32,7 +33,6 @@
   },
   "devDependencies": {
     "@types/node": "24.19.1",
-    "@types/nodemailer": "8.0.2",
     "@types/pg": "8.23.1",
     "drizzle-kit": "0.31.11",
     "tsx": "4.23.15",

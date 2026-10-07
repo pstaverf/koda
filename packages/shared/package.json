@@ -5,34 +5,42 @@
   "type": "module",
   "exports": {
     "./auth": {
+      "development": "./src/auth.ts",
       "types": "./dist/auth.d.ts",
       "default": "./dist/auth.js"
     },
     "./profile": {
+      "development": "./src/profile.ts",
       "types": "./dist/profile.d.ts",
       "default": "./dist/profile.js"
     },
     "./friends": {
+      "development": "./src/friends.ts",
       "types": "./dist/friends.d.ts",
       "default": "./dist/friends.js"
     },
     "./privacy": {
+      "development": "./src/privacy.ts",
       "types": "./dist/privacy.d.ts",
       "default": "./dist/privacy.js"
     },
     "./sessions": {
+      "development": "./src/sessions.ts",
       "types": "./dist/sessions.d.ts",
       "default": "./dist/sessions.js"
     },
     "./ws": {
+      "development": "./src/ws.ts",
       "types": "./dist/ws.d.ts",
       "default": "./dist/ws.js"
     },
     "./errors": {
+      "development": "./src/errors.ts",
       "types": "./dist/errors.d.ts",
       "default": "./dist/errors.js"
     },
     "./constants": {
+      "development": "./src/constants.ts",
       "types": "./dist/constants.d.ts",
       "default": "./dist/constants.js"
     }
