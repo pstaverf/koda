@@ -89,6 +89,7 @@ export const blocks = pgTable(
   },
   (table) => [
     uniqueIndex("blocks_pair_unique").on(table.blockerId, table.blockedId),
+    index("blocks_blocked_id_index").on(table.blockedId),
     check("blocks_not_self_check", sql`${table.blockerId} <> ${table.blockedId}`)
   ]
 );

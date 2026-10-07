@@ -181,4 +181,22 @@
       - `test/privacy.form.test.ts`
       - `test/register.code.test.tsx`
 
-Этап 1 материализует корневые файлы, `pnpm-workspace.yaml`, `package.json` и `tsconfig.json` всех трёх пакетов, `docker-compose.yml` и `.env.example`. Остальные файлы дерева выдаются на последующих этапах согласно ТЗ.
+## Подготовка
+
+- `cp .env.example .env && pnpm install`
+- `cp .env.example .env && pnpm run infra:up`
+- `cp .env.example .env && pnpm run db:migrate`
+- `cp .env.example .env && pnpm run db:generate`
+
+## Запуск
+
+- `cp .env.example .env && pnpm run dev`
+- `cp .env.example .env && pnpm run dev:server`
+- `cp .env.example .env && pnpm run dev:client`
+
+## Проверка
+
+- `cp .env.example .env && pnpm run typecheck`
+- `cp .env.example .env && pnpm run build`
+- `cp .env.example .env && pnpm run test`
+- `cp .env.example .env && pnpm run infra:down`

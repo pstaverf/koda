@@ -7,9 +7,9 @@ export const TIMEZONE_HEADER = "X-Timezone";
 
 export const REFRESH_COOKIE_NAME = "koda_refresh";
 export const REFRESH_COOKIE_PATH = "/api/v1/auth";
+export const REGISTRATION_COOKIE_NAME = "koda_registration";
+export const REGISTRATION_COOKIE_PATH = "/api/v1/auth/register";
 
-export const ACCESS_TOKEN_TTL_SECONDS = 900;
-export const REFRESH_TOKEN_TTL_DAYS = 30;
 export const REFRESH_TOKEN_BYTES = 32;
 export const REGISTRATION_TOKEN_BYTES = 32;
 export const REGISTRATION_TTL_SECONDS = 1800;
@@ -44,7 +44,7 @@ export const BANNER_WIDTH = 1500;
 export const BANNER_HEIGHT = 500;
 
 export const PRESENCE_TTL_SECONDS = 90;
-export const PRESENCE_HEARTBEAT_SECONDS = 30;
+export const PRESENCE_HEARTBEAT_SECONDS = 25;
 export const PRESENCE_LAST_SEEN_WRITE_SECONDS = 30;
 
 export const WS_AUTH_TIMEOUT_MS = 5000;
@@ -55,7 +55,6 @@ export const WS_RECONNECT_MAX_MS = 30000;
 export const WS_SUBSCRIBE_MAX_USERS = 200;
 
 export const DELETED_ACCOUNT_RETENTION_DAYS = 14;
-export const S3_URL_TTL_SECONDS = 3600;
 
 export const bannerPalette: readonly { id: string; style: BannerStyleValue }[] = [
   { id: "graphite", style: { type: "color", value: "#1F1F24" } },

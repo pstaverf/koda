@@ -67,6 +67,7 @@ export const friendStateSchema = z.enum(["none", "outgoing", "incoming", "friend
 export type FriendState = z.infer<typeof friendStateSchema>;
 
 export const publicUserSchema = z.object({
+  id: z.uuid(),
   publicId: z.string(),
   displayName: z.string(),
   avatarUrl: z.string().nullable(),
@@ -77,7 +78,6 @@ export const publicUserSchema = z.object({
 export type PublicUser = z.infer<typeof publicUserSchema>;
 
 export const currentUserSchema = publicUserSchema.extend({
-  id: z.string().uuid(),
   email: z.string(),
   createdAt: z.string()
 });

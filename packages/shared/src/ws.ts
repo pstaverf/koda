@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { isValidTimeZone, WS_SUBSCRIBE_MAX_USERS } from "./constants.js";
-import { presenceStatusSchema } from "./profile.js";
+import { presenceStatusSchema, publicUserSchema } from "./profile.js";
 
 export const wsClientMessageTypes = ["auth", "presence:subscribe"] as const;
 
@@ -37,10 +37,7 @@ export const wsPresenceUpdatePayloadSchema = z.object({
 export type WsPresenceUpdatePayload = z.infer<typeof wsPresenceUpdatePayloadSchema>;
 
 export const wsFriendEventPayloadSchema = z.object({
-  userId: z.uuid(),
-  publicId: z.string(),
-  displayName: z.string(),
-  avatarUrl: z.string().nullable()
+  user: publicUserSchema
 });
 export type WsFriendEventPayload = z.infer<typeof wsFriendEventPayloadSchema>;
 
