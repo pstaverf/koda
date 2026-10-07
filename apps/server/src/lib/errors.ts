@@ -106,6 +106,20 @@ export const errorBody = (error: AppError): ApiErrorBody => {
   return { code: error.code, message: error.message, fields: error.fields };
 };
 
+export type LoggableError = {
+  name: string;
+  code: string | undefined;
+  statusCode: number | undefined;
+};
+
+export const loggableError = (error: unknown): LoggableError => {
+  if (error instanceof Error) {
+    const candidate = error as FastifyError;
+    return { name: error.name, code: candidate.code, statusCode: candidate.statusCode };
+  }
+  return { name: "UnknownError", code: undefined, statusCode: undefined };
+};
+
 export const registerErrorHandler = (app: FastifyInstance): void => {
   app.setNotFoundHandler(async (_request: FastifyRequest, reply: FastifyReply) => {
     await reply.status(404).send(errorBody(new AppError("NOT_FOUND")));
@@ -137,7 +151,7 @@ export const registerErrorHandler = (app: FastifyInstance): void => {
       await reply.status(400).send(errorBody(new AppError("VALIDATION_FAILED")));
       return;
     }
-    request.log.error({ err: error }, "unhandled request error");
+    request.log.error({ err: loggableError(error) }, "unhandled request error");
     await reply.status(500).send(errorBody(new AppError("INTERNAL_ERROR")));
   });
 };

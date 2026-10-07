@@ -1,6 +1,7 @@
 import { buildApp } from "./app.js";
 import { closeDatabase, pingDatabase } from "./db/client.js";
 import { env } from "./env.js";
+import { loggableError } from "./lib/errors.js";
 import { closeRedis, pingRedis } from "./redis/client.js";
 
 const app = buildApp();
@@ -26,6 +27,6 @@ const start = async (): Promise<void> => {
 };
 
 start().catch((error: unknown) => {
-  app.log.error({ err: error }, "startup failed");
+  app.log.error({ err: loggableError(error) }, "startup failed");
   process.exit(1);
 });

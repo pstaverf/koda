@@ -183,20 +183,21 @@
 
 ## Подготовка
 
-- `cp .env.example .env && pnpm install`
-- `cp .env.example .env && pnpm run infra:up`
-- `cp .env.example .env && pnpm run db:migrate`
-- `cp .env.example .env && pnpm run db:generate`
+- `cp -n .env.example .env`
+- `pnpm install`
+- `pnpm run infra:up`
+- `pnpm run db:migrate`
+- `pnpm run db:generate`
 
 ## Запуск
 
-- `cp .env.example .env && pnpm run dev`
-- `cp .env.example .env && pnpm run dev:server`
-- `cp .env.example .env && pnpm run dev:client`
+- `pnpm run dev`
+- `pnpm run dev:server`
+- `pnpm run dev:client`
 
 ## Проверка
 
-- `cp .env.example .env && pnpm run typecheck`
-- `cp .env.example .env && pnpm run build`
-- `cp .env.example .env && pnpm run test`
-- `cp .env.example .env && pnpm run infra:down`
+- `pnpm run typecheck`
+- `pnpm run build`
+- `pnpm run test`
+- `pnpm run infra:down`

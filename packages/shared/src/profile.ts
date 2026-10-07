@@ -78,6 +78,7 @@ export const publicUserSchema = z.object({
 export type PublicUser = z.infer<typeof publicUserSchema>;
 
 export const currentUserSchema = publicUserSchema.extend({
+  displayName: z.string().nullable(),
   email: z.string(),
   createdAt: z.string()
 });

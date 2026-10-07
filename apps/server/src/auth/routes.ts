@@ -41,7 +41,7 @@ const holdEmailStepLatency = async (startedAt: number): Promise<void> => {
 };
 
 const registerEmail = async (request: FastifyRequest, reply: FastifyReply): Promise<void> => {
-  const startedAt = Date.now();
+  const latencyFloor = holdEmailStepLatency(Date.now());
   const input = validateInput(registerEmailInput, request.body);
   const previousToken = registrationCookie(request);
   if (previousToken !== null) {
@@ -58,11 +58,11 @@ const registerEmail = async (request: FastifyRequest, reply: FastifyReply): Prom
     await sendMail({ to: input.email, ...registrationCodeMail(code) });
   } else {
     if (allowed) {
-      await sendMail({ to: input.email, ...occupiedEmailMail() });
+      void sendMail({ to: input.email, ...occupiedEmailMail() }).catch(() => undefined);
     }
     setRegistrationCookie(reply, randomRegistrationToken());
   }
-  await holdEmailStepLatency(startedAt);
+  await latencyFloor;
   await reply.send({ ok: true });
 };
 

@@ -7,7 +7,7 @@ import Fastify, { type FastifyInstance } from "fastify";
 import { registerAuthRoutes } from "./auth/routes.js";
 import { pingDatabase } from "./db/client.js";
 import { env } from "./env.js";
-import { registerErrorHandler } from "./lib/errors.js";
+import { loggableError, registerErrorHandler } from "./lib/errors.js";
 import { pingRedis } from "./redis/client.js";
 
 export const buildApp = (): FastifyInstance => {
@@ -40,7 +40,7 @@ export const buildApp = (): FastifyInstance => {
       await pingRedis();
       return { status: "ready" };
     } catch (error) {
-      request.log.error({ err: error }, "readiness check failed");
+      request.log.error({ err: loggableError(error) }, "readiness check failed");
       return reply.status(503).send({ status: "unavailable" });
     }
   });

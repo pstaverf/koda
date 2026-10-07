@@ -50,7 +50,7 @@ export const buildCurrentUser = (user: User, avatarUrl: string | null, bannerUrl
   id: user.id,
   publicId: user.publicId,
   email: user.email,
-  displayName: user.displayName ?? "",
+  displayName: user.displayName,
   bio: user.bio,
   avatarUrl,
   bannerUrl,
