@@ -60,7 +60,6 @@
   isolation: isolate;
   border: 1px solid var(--glass-border);
   box-shadow: var(--glass-inner-shadow), var(--shadow-md);
-  transition: transform var(--duration-normal) var(--ease-spring);
 }
 
 .glass {
@@ -68,6 +67,11 @@
   border-radius: var(--radius-lg);
   -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
   backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+}
+
+.glass-flat {
+  background: var(--glass-fill);
+  border-radius: var(--radius-lg);
 }
 
 .glass-strong {
@@ -87,7 +91,8 @@
 
 .glass::before,
 .glass-strong::before,
-.glass-pill::before {
+.glass-pill::before,
+.glass-flat::before {
   content: "";
   position: absolute;
   inset: 0;
@@ -98,14 +103,28 @@
   opacity: 0.35;
 }
 
-html[data-glass-filter="supported"] .glass {
-  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
-  backdrop-filter: url(#koda-glass-distortion) blur(var(--glass-blur)) saturate(var(--glass-saturate));
+.glass-pill::after,
+.glass-button-primary::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  pointer-events: none;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.32) 0%, rgba(255, 255, 255, 0.06) 42%, rgba(255, 255, 255, 0) 68%);
+  opacity: 0.45;
 }
 
-html[data-glass-filter="supported"] .glass-strong {
-  -webkit-backdrop-filter: blur(var(--glass-blur-strong)) saturate(var(--glass-saturate));
-  backdrop-filter: url(#koda-glass-distortion) blur(var(--glass-blur-strong)) saturate(var(--glass-saturate));
+html[data-glass-filter="supported"] .glass-pill::after,
+html[data-glass-filter="supported"] .glass-button-primary::after {
+  filter: url(#koda-glass-distortion);
+  opacity: 0.6;
+}
+
+
+.glass-interactive {
+  cursor: pointer;
+  transition: transform var(--duration-normal) var(--ease-spring);
 }
 
 .glass-panel-padded {
@@ -114,14 +133,14 @@ html[data-glass-filter="supported"] .glass-strong {
 
 @media (hover: hover) {
   .glass-button:hover:not(:disabled),
-  .glass:hover,
-  .glass-strong:not(.modal):not(.toast):hover {
+  .glass-interactive:hover {
     transform: scale(1.02);
   }
 }
 
 .glass-button {
   position: relative;
+  isolation: isolate;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -372,7 +391,8 @@ html[data-reduced-transparency="true"] .glass-strong {
 }
 
 html[data-reduced-transparency="true"] .glass-button,
-html[data-reduced-transparency="true"] .glass-pill {
+html[data-reduced-transparency="true"] .glass-pill,
+html[data-reduced-transparency="true"] .glass-flat {
   background: var(--color-surface-solid);
 }
 
@@ -391,6 +411,9 @@ html[data-reduced-transparency="true"] .glass-button-danger {
 html[data-reduced-transparency="true"] .glass::before,
 html[data-reduced-transparency="true"] .glass-strong::before,
 html[data-reduced-transparency="true"] .glass-pill::before,
+html[data-reduced-transparency="true"] .glass-flat::before,
+html[data-reduced-transparency="true"] .glass-pill::after,
+html[data-reduced-transparency="true"] .glass-button-primary::after,
 html[data-reduced-transparency="true"] .ambient-orb {
   display: none;
 }
@@ -401,8 +424,7 @@ html[data-reduced-transparency="true"] .modal-backdrop {
 
 @media (hover: hover) {
   html[data-reduced-motion="true"] .glass-button:hover:not(:disabled),
-  html[data-reduced-motion="true"] .glass:hover,
-  html[data-reduced-motion="true"] .glass-strong:not(.modal):not(.toast):hover {
+  html[data-reduced-motion="true"] .glass-interactive:hover {
     transform: none;
   }
 }
@@ -427,5 +449,9 @@ html[data-reduced-transparency="true"] .modal-backdrop {
 
   .glass-button-primary {
     background: var(--color-accent);
+  }
+
+  .glass-flat {
+    background: var(--color-surface-solid);
   }
 }

@@ -101,11 +101,14 @@
       - `main.tsx`
       - `App.tsx`
       - `router.tsx`
+      - `routes.ts`
       - `strings.ts`
       - `vite-env.d.ts`
       - `styles/tokens.css`
       - `styles/base.css`
       - `styles/glass.css`
+      - `styles/screens.css`
+      - `styles/app.css`
       - `styles/animations.css`
       - `api/http.ts`
       - `api/auth.ts`
@@ -154,6 +157,7 @@
       - `components/Steps.tsx`
       - `components/Toasts.tsx`
       - `components/Turnstile.tsx`
+      - `screens/UpcomingScreen.tsx`
       - `screens/Login.tsx`
       - `screens/ResetPassword.tsx`
       - `screens/Profile.tsx`
@@ -193,6 +197,8 @@
 ## Окружение
 
 - `COOKIE_SECURE=false` допустим только для локальной разработки; в production должно быть `COOKIE_SECURE=true`, иначе сервер не стартует.
+- `ALLOWED_ORIGINS` принимает адреса клиента через запятую; при работе через туннель в список добавляется его внешний адрес.
+- `S3_ENDPOINT` — адрес MinIO для запросов сервера; `S3_PUBLIC_ENDPOINT` — адрес, попадающий в presigned-ссылки, то есть доступный из браузера; пустое значение означает `S3_ENDPOINT`.
 
 ## Схема Redis
 
