@@ -32,6 +32,7 @@ const envSchema = z.object({
   SMTP_PASSWORD: z.string().min(1),
   SMTP_FROM: z.string().min(1),
   S3_ENDPOINT: z.string().min(1),
+  S3_PUBLIC_ENDPOINT: z.string().optional(),
   S3_REGION: z.string().min(1),
   S3_BUCKET: z.string().min(1),
   S3_ACCESS_KEY: z.string().min(1),
@@ -87,6 +88,10 @@ export const env = {
   },
   s3: {
     endpoint: raw.S3_ENDPOINT,
+    publicEndpoint:
+      raw.S3_PUBLIC_ENDPOINT === undefined || raw.S3_PUBLIC_ENDPOINT.length === 0
+        ? raw.S3_ENDPOINT
+        : raw.S3_PUBLIC_ENDPOINT,
     region: raw.S3_REGION,
     bucket: raw.S3_BUCKET,
     accessKey: raw.S3_ACCESS_KEY,
