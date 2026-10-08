@@ -42,8 +42,3 @@ export const registrationCookie = (request: FastifyRequest): string | null => {
   const value = request.cookies[REGISTRATION_COOKIE_NAME];
   return typeof value === "string" && value.length > 0 ? value : null;
 };
-
-export const refreshCookie = (request: FastifyRequest): string | null => {
-  const value = request.cookies[REFRESH_COOKIE_NAME];
-  return typeof value === "string" && value.length > 0 ? value : null;
-};

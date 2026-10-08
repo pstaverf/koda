@@ -24,7 +24,3 @@ export const sendMail = async (message: MailMessage): Promise<void> => {
     text: message.text
   });
 };
-
-export const sendMailQuietly = (message: MailMessage): void => {
-  void sendMail(message).catch(() => undefined);
-};

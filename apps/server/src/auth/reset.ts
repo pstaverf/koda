@@ -5,13 +5,21 @@ import { users } from "../db/schema.js";
 import { AppError } from "../lib/errors.js";
 import { hashEmail } from "../lib/hash.js";
 import { hashPassword } from "../lib/password.js";
-import { holdMinimumLatency } from "../lib/time.js";
-import { sendMailQuietly } from "../mail/mailer.js";
+import { sendMail } from "../mail/mailer.js";
 import { checkCode, codeMail, consumeCodeLimits, cooldownActive, issueCode, startCodeCooldown } from "./codes.js";
 import { clearLoginFailures } from "./login.js";
 import { revokeAllUserSessions } from "./session.js";
 
 const resetRequestMinimumMs = 300;
+
+const holdMinimumLatency = async (startedAt: number, minimumMs: number): Promise<void> => {
+  const remaining = minimumMs - (Date.now() - startedAt);
+  if (remaining > 0) {
+    await new Promise((resolve) => {
+      setTimeout(resolve, remaining);
+    });
+  }
+};
 
 const findActiveUserIdByEmail = async (email: string): Promise<string | null> => {
   const rows = await db
@@ -36,7 +44,7 @@ const issueResetCode = async (email: string, ip: string): Promise<void> => {
   }
   const code = await issueCode(emailHash, "reset");
   await startCodeCooldown(emailHash);
-  sendMailQuietly({ to: email, ...codeMail("reset", code) });
+  void sendMail({ to: email, ...codeMail("reset", code) }).catch(() => undefined);
 };
 
 export const requestPasswordReset = async (email: string, ip: string): Promise<void> => {

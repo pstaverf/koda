@@ -6,7 +6,7 @@ import { users, type User } from "../db/schema.js";
 import { AppError } from "../lib/errors.js";
 import { hashEmail } from "../lib/hash.js";
 import { hashPassword, verifyPassword } from "../lib/password.js";
-import { consumeLimit, incrementCounter, readCounter } from "../lib/rateLimit.js";
+import { consumeLimit } from "../lib/rateLimit.js";
 import { verifyTurnstile } from "../lib/turnstile.js";
 import { redis } from "../redis/client.js";
 
@@ -15,6 +15,15 @@ const hourSeconds = 3600;
 const emailFailureKey = (emailHash: string): string => `fail:login:${emailHash}`;
 const ipFailureKey = (ip: string): string => `fail:login:ip:${ip}`;
 const ipLimitKey = (ip: string): string => `rl:login:${ip}`;
+
+const readCounter = async (key: string): Promise<number> => {
+  const value = await redis.get(key);
+  return value === null ? 0 : Number(value);
+};
+
+const incrementCounter = async (key: string, windowSeconds: number): Promise<void> => {
+  await consumeLimit(key, Number.MAX_SAFE_INTEGER, windowSeconds);
+};
 
 let dummyHash: Promise<string> | null = null;
 
