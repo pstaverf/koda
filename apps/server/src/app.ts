@@ -5,7 +5,9 @@ import helmet from "@fastify/helmet";
 import multipart from "@fastify/multipart";
 import Fastify, { type FastifyInstance } from "fastify";
 import { registerAuthRoutes } from "./auth/routes.js";
+import { registerBlockRoutes } from "./blocks/routes.js";
 import { pingDatabase } from "./db/client.js";
+import { registerFriendRoutes } from "./friends/routes.js";
 import { registerMediaRoutes } from "./media/routes.js";
 import { registerProfileRoutes } from "./profile/routes.js";
 import { env } from "./env.js";
@@ -52,6 +54,8 @@ export const buildApp = (): FastifyInstance => {
   app.register(registerAuthRoutes, { prefix: API_PREFIX });
   app.register(registerProfileRoutes, { prefix: API_PREFIX });
   app.register(registerMediaRoutes, { prefix: API_PREFIX });
+  app.register(registerFriendRoutes, { prefix: API_PREFIX });
+  app.register(registerBlockRoutes, { prefix: API_PREFIX });
 
   return app;
 };
