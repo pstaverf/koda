@@ -51,7 +51,11 @@ const writeLastSeen = async (userId: string, force: boolean): Promise<void> => {
 
 export const markConnected = async (userId: string): Promise<void> => {
   const count = Number(await redis.eval(connectScript, 1, presenceKey(userId), String(Date.now()), String(PRESENCE_TTL_SECONDS)));
-  await writeLastSeen(userId, false);
+  try {
+    await writeLastSeen(userId, false);
+  } catch {
+    await redis.del(lastSeenWriteKey(userId)).catch(() => undefined);
+  }
   if (count === 1) {
     publishPresenceChanged(userId);
   }
