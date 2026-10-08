@@ -240,7 +240,7 @@ export const registerAuthRoutes = async (app: FastifyInstance): Promise<void> =>
   app.post("/auth/register/email", { preHandler: cookieRouteGuard }, registerEmail);
   app.post("/auth/register/code/verify", { preHandler: cookieRouteGuard }, verifyRegistrationCode);
   app.post("/auth/register/code/resend", { preHandler: cookieRouteGuard }, resendRegistrationCode);
-  app.post("/auth/register/password", { preHandler: apiGuard }, registerPassword);
+  app.post("/auth/register/password", { preHandler: cookieRouteGuard }, registerPassword);
   app.post("/auth/register/name", { preHandler: authGuard }, finishRegistration);
   app.post("/auth/login", { preHandler: cookieRouteGuard }, login);
   app.post("/auth/refresh", { preHandler: cookieRouteGuard }, refresh);
