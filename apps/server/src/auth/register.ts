@@ -37,6 +37,14 @@ export const readRegistration = async (token: string): Promise<RegistrationRecor
   return JSON.parse(raw) as RegistrationRecord;
 };
 
+export const takeRegistration = async (token: string): Promise<RegistrationRecord | null> => {
+  const raw = await redis.getdel(registrationKey(token));
+  if (raw === null) {
+    return null;
+  }
+  return JSON.parse(raw) as RegistrationRecord;
+};
+
 export const createRegistration = async (email: string, step: RegistrationStep): Promise<string> => {
   const token = randomRegistrationToken();
   const record: RegistrationRecord = { email, step };

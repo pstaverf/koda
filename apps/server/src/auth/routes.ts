@@ -10,14 +10,14 @@ import {
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { AppError, validateInput } from "../lib/errors.js";
 import { clearRegistrationCookie, registrationCookie, setRefreshCookie, setRegistrationCookie } from "../lib/cookies.js";
-import { authGuard, cookieRouteGuard, requireUserId } from "../lib/guards.js";
+import { apiGuard, authGuard, cookieRouteGuard, requireUserId } from "../lib/guards.js";
 import { hashEmail } from "../lib/hash.js";
 import { hashPassword } from "../lib/password.js";
 import { verifyTurnstile } from "../lib/turnstile.js";
-import { occupiedEmailMail, registrationCodeMail } from "../mail/templates.js";
+import { occupiedEmailMail, registrationCodeMail, type MailContent } from "../mail/templates.js";
 import { sendMail } from "../mail/mailer.js";
 import { presignedGetUrlOrNull } from "../media/storage.js";
-import { assertCooldownPassed, codeMail, consumeCodeLimits, issueCode, startCodeCooldown, verifyCode } from "./codes.js";
+import { checkCode, codeMail, consumeCodeLimits, cooldownActive, issueCode, startCodeCooldown } from "./codes.js";
 import {
   createAccount,
   createRegistration,
@@ -25,6 +25,7 @@ import {
   findUserIdByEmail,
   randomRegistrationToken,
   readRegistration,
+  takeRegistration,
   updateDisplayName
 } from "./register.js";
 import { buildCurrentUser, createSession } from "./session.js";
@@ -38,6 +39,10 @@ const holdEmailStepLatency = async (startedAt: number): Promise<void> => {
       setTimeout(resolve, remaining);
     });
   }
+};
+
+const sendQuietly = (to: string, content: MailContent): void => {
+  void sendMail({ to, ...content }).catch(() => undefined);
 };
 
 const registerEmail = async (request: FastifyRequest, reply: FastifyReply): Promise<void> => {
@@ -55,10 +60,10 @@ const registerEmail = async (request: FastifyRequest, reply: FastifyReply): Prom
     await startCodeCooldown(emailHash);
     const token = await createRegistration(input.email, "code");
     setRegistrationCookie(reply, token);
-    await sendMail({ to: input.email, ...registrationCodeMail(code) });
+    sendQuietly(input.email, registrationCodeMail(code));
   } else {
     if (allowed) {
-      void sendMail({ to: input.email, ...occupiedEmailMail() }).catch(() => undefined);
+      sendQuietly(input.email, occupiedEmailMail());
     }
     setRegistrationCookie(reply, randomRegistrationToken());
   }
@@ -70,17 +75,15 @@ const verifyRegistrationCode = async (request: FastifyRequest, reply: FastifyRep
   const input = validateInput(verifyCodeInput, request.body);
   const token = registrationCookie(request);
   const record = token === null ? null : await readRegistration(token);
-  if (record === null) {
+  if (token === null || record === null || record.step !== "code") {
     throw new AppError("CODE_INVALID");
   }
-  if (record.step !== "code") {
-    throw new AppError("REGISTRATION_STEP_INVALID");
+  const result = await checkCode(hashEmail(record.email), input.code, "register");
+  if (result !== "valid") {
+    throw new AppError("CODE_INVALID");
   }
-  await verifyCode(hashEmail(record.email), input.code, "register");
   const nextToken = await createRegistration(record.email, "password");
-  if (token !== null) {
-    await deleteRegistration(token);
-  }
+  await deleteRegistration(token);
   clearRegistrationCookie(reply);
   const payload: CodeVerified = { registrationToken: nextToken };
   await reply.send({ data: payload });
@@ -90,25 +93,20 @@ const resendRegistrationCode = async (request: FastifyRequest, reply: FastifyRep
   validateInput(resendCodeInput, request.body);
   const token = registrationCookie(request);
   const record = token === null ? null : await readRegistration(token);
-  if (record === null || record.step !== "code") {
-    await reply.send({ data: null });
-    return;
+  if (record !== null && record.step === "code") {
+    const emailHash = hashEmail(record.email);
+    if (!(await cooldownActive(emailHash)) && (await consumeCodeLimits(emailHash, request.ip))) {
+      const code = await issueCode(emailHash, "register");
+      await startCodeCooldown(emailHash);
+      sendQuietly(record.email, codeMail("register", code));
+    }
   }
-  const emailHash = hashEmail(record.email);
-  await assertCooldownPassed(emailHash);
-  const allowed = await consumeCodeLimits(emailHash, request.ip);
-  if (!allowed) {
-    throw new AppError("CODE_LIMIT_EXCEEDED");
-  }
-  const code = await issueCode(emailHash, "register");
-  await startCodeCooldown(emailHash);
-  await sendMail({ to: record.email, ...codeMail("register", code) });
   await reply.send({ data: null });
 };
 
 const registerPassword = async (request: FastifyRequest, reply: FastifyReply): Promise<void> => {
   const input = validateInput(registerPasswordInput, request.body);
-  const record = await readRegistration(input.registrationToken);
+  const record = await takeRegistration(input.registrationToken);
   if (record === null) {
     throw new AppError("REGISTRATION_TOKEN_INVALID");
   }
@@ -122,7 +120,6 @@ const registerPassword = async (request: FastifyRequest, reply: FastifyReply): P
   }
   const passwordHash = await hashPassword(input.password);
   const user = await createAccount(record.email, passwordHash);
-  await deleteRegistration(input.registrationToken);
   const session = await createSession({
     userId: user.id,
     userAgent: request.headers["user-agent"] ?? null,
@@ -147,6 +144,6 @@ export const registerAuthRoutes = async (app: FastifyInstance): Promise<void> =>
   app.post("/auth/register/email", { preHandler: cookieRouteGuard }, registerEmail);
   app.post("/auth/register/code/verify", { preHandler: cookieRouteGuard }, verifyRegistrationCode);
   app.post("/auth/register/code/resend", { preHandler: cookieRouteGuard }, resendRegistrationCode);
-  app.post("/auth/register/password", { preHandler: cookieRouteGuard }, registerPassword);
+  app.post("/auth/register/password", { preHandler: apiGuard }, registerPassword);
   app.post("/auth/register/name", { preHandler: authGuard }, finishRegistration);
 };

@@ -11,7 +11,7 @@
     "dev": "pnpm run build:shared && pnpm --parallel --filter @koda/server --filter @koda/client run dev",
     "dev:server": "pnpm --filter @koda/server run dev",
     "dev:client": "pnpm --filter @koda/client run dev",
-    "build": "pnpm run build:shared && pnpm --filter @koda/client run build",
+    "build": "pnpm run build:shared && pnpm --filter @koda/server --filter @koda/client run build",
     "build:shared": "pnpm --filter @koda/shared run build",
     "typecheck": "pnpm run build:shared && pnpm -r --if-present run typecheck",
     "test": "pnpm run build:shared && pnpm --filter @koda/server --filter @koda/client run test",

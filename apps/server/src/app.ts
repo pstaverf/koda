@@ -12,8 +12,8 @@ import { pingRedis } from "./redis/client.js";
 
 export const buildApp = (): FastifyInstance => {
   const app = Fastify({
-    trustProxy: true,
-    bodyLimit: BANNER_MAX_BYTES,
+    trustProxy: env.trustProxy,
+    bodyLimit: env.bodyLimitBytes,
     logger: {
       level: env.logLevel,
       redact: ["req.headers.authorization", "req.headers.cookie", "res.headers.set-cookie"]

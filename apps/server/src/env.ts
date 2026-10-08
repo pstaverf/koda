@@ -38,7 +38,12 @@ const envSchema = z.object({
   S3_SECRET_KEY: z.string().min(1),
   S3_FORCE_PATH_STYLE: booleanFlag.optional(),
   S3_URL_TTL_SECONDS: z.coerce.number().int().min(60).max(604800).optional(),
-  TURNSTILE_SECRET_KEY: z.string().min(1)
+  TURNSTILE_SECRET_KEY: z.string().min(1),
+  TRUST_PROXY: booleanFlag.optional(),
+  BODY_LIMIT_BYTES: z.coerce.number().int().min(1024).max(1048576).optional()
+}).refine((value) => value.NODE_ENV !== "production" || value.COOKIE_SECURE === true, {
+  path: ["COOKIE_SECURE"],
+  message: "must be true in production"
 });
 
 const parsed = envSchema.safeParse(process.env);
@@ -57,6 +62,8 @@ export const env = {
   host: raw.HOST ?? "0.0.0.0",
   port: raw.PORT ?? 4000,
   logLevel: raw.LOG_LEVEL ?? "info",
+  trustProxy: raw.TRUST_PROXY ?? false,
+  bodyLimitBytes: raw.BODY_LIMIT_BYTES ?? 102400,
   databaseUrl: raw.DATABASE_URL,
   redisUrl: raw.REDIS_URL,
   accessTokenSecret: raw.ACCESS_TOKEN_SECRET,

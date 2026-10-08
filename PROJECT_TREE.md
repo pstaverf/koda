@@ -24,6 +24,7 @@
   - `apps/server/`
     - `package.json`
     - `tsconfig.json`
+    - `tsconfig.build.json`
     - `vitest.config.ts`
     - `drizzle.config.ts`
     - `drizzle/`

@@ -60,30 +60,72 @@ export const startCodeCooldown = async (emailHash: string): Promise<void> => {
   await redis.set(cooldownKey(emailHash), "1", "EX", CODE_RESEND_COOLDOWN_SECONDS);
 };
 
+export const cooldownActive = async (emailHash: string): Promise<boolean> =>
+  (await redis.ttl(cooldownKey(emailHash))) > 0;
+
 export const assertCooldownPassed = async (emailHash: string): Promise<void> => {
-  const ttl = await redis.ttl(cooldownKey(emailHash));
-  if (ttl > 0) {
+  if (await cooldownActive(emailHash)) {
     throw new AppError("CODE_COOLDOWN");
   }
 };
 
+export type CodeCheck = "valid" | "invalid" | "expired" | "exceeded";
+
+const attemptScript = `
+local raw = redis.call("GET", KEYS[1])
+if not raw then
+  return {"missing"}
+end
+local record = cjson.decode(raw)
+if record.purpose ~= ARGV[1] then
+  return {"mismatch"}
+end
+record.attempts = record.attempts + 1
+if record.attempts > tonumber(ARGV[2]) then
+  redis.call("DEL", KEYS[1])
+  return {"exceeded"}
+end
+redis.call("SET", KEYS[1], cjson.encode(record), "KEEPTTL")
+return {"pending", record.hash, record.salt, tostring(record.attempts)}
+`;
+
+const parseAttempt = (value: unknown): string[] =>
+  Array.isArray(value) ? value.map((item) => String(item)) : [];
+
+export const checkCode = async (emailHash: string, code: string, purpose: CodePurpose): Promise<CodeCheck> => {
+  const key = codeKey(emailHash);
+  const [state, hash, salt, attempts] = parseAttempt(
+    await redis.eval(attemptScript, 1, key, purpose, String(CODE_MAX_ATTEMPTS))
+  );
+  if (state === "missing") {
+    return "expired";
+  }
+  if (state === "exceeded") {
+    return "exceeded";
+  }
+  if (state !== "pending" || hash === undefined || salt === undefined || attempts === undefined) {
+    return "invalid";
+  }
+  if (safeEqualHex(hash, hashCode(code, salt))) {
+    const removed = await redis.del(key);
+    return removed === 1 ? "valid" : "invalid";
+  }
+  if (Number(attempts) >= CODE_MAX_ATTEMPTS) {
+    await redis.del(key);
+    return "exceeded";
+  }
+  return "invalid";
+};
+
+const codeCheckErrors = {
+  invalid: "CODE_INVALID",
+  expired: "CODE_EXPIRED",
+  exceeded: "CODE_ATTEMPTS_EXCEEDED"
+} as const;
+
 export const verifyCode = async (emailHash: string, code: string, purpose: CodePurpose): Promise<void> => {
-  const raw = await redis.get(codeKey(emailHash));
-  if (raw === null) {
-    throw new AppError("CODE_EXPIRED");
+  const result = await checkCode(emailHash, code, purpose);
+  if (result !== "valid") {
+    throw new AppError(codeCheckErrors[result]);
   }
-  const record = JSON.parse(raw) as CodeRecord;
-  if (record.purpose !== purpose) {
-    throw new AppError("CODE_INVALID");
-  }
-  if (!safeEqualHex(record.hash, hashCode(code, record.salt))) {
-    const attempts = record.attempts + 1;
-    if (attempts >= CODE_MAX_ATTEMPTS) {
-      await redis.del(codeKey(emailHash));
-      throw new AppError("CODE_ATTEMPTS_EXCEEDED");
-    }
-    await redis.set(codeKey(emailHash), JSON.stringify({ ...record, attempts }), "KEEPTTL");
-    throw new AppError("CODE_INVALID");
-  }
-  await redis.del(codeKey(emailHash));
 };
