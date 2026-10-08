@@ -210,6 +210,11 @@
 - `rl:friend_req:{user_id}` — лимит заявок в друзья, 50 в сутки
 - `email_change:{user_id}` — хеш новой почты, ожидающей подтверждения кодом `change_email`, TTL 600 с
 - `rl:account_password:{user_id}` — лимит проверок текущего пароля при смене пароля и удалении аккаунта, 10 в час
+- `revoked:sid:{session_id}` — отметка отозванного сеанса, значение `1`, TTL = ACCESS_TOKEN_TTL_SECONDS; authGuard и WebSocket отклоняют access-токены с этим sid
+- `presence:{user_id}` — hash `{ connections, lastSeenAt }`, connections через HINCRBY, TTL 90 с, продлевается по pong; online, пока connections > 0
+- `presence:pg_write:{user_id}` — ограничение записи last_seen_at в PostgreSQL при авторизации WebSocket, SET NX, TTL 30 с
+- `ws:user:{user_id}` — канал Pub/Sub для событий WebSocket конкретного пользователя
+- `ws:presence` — канал Pub/Sub смены статуса присутствия `{ userId }`, каждый экземпляр рассылает presence:update своим подписчикам
 
 ## Запуск
 

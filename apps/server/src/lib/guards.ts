@@ -1,5 +1,6 @@
 import { CLIENT_HEADER } from "@koda/shared/constants";
 import type { FastifyRequest } from "fastify";
+import { isSessionRevoked } from "../auth/session.js";
 import { env } from "../env.js";
 import { AppError } from "./errors.js";
 import { verifyAccessToken } from "./tokens.js";
@@ -62,7 +63,7 @@ export const authGuard = async (request: FastifyRequest): Promise<void> => {
   assertClient(request);
   const token = bearerToken(request.headers.authorization);
   const claims = token === null ? null : await verifyAccessToken(token);
-  if (claims === null) {
+  if (claims === null || (await isSessionRevoked(claims.sessionId))) {
     throw new AppError("UNAUTHORIZED");
   }
   request.userId = claims.userId;

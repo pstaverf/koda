@@ -3,6 +3,7 @@ import cookie from "@fastify/cookie";
 import cors from "@fastify/cors";
 import helmet from "@fastify/helmet";
 import multipart from "@fastify/multipart";
+import websocket from "@fastify/websocket";
 import Fastify, { type FastifyInstance } from "fastify";
 import { registerAccountRoutes } from "./account/routes.js";
 import { registerAuthRoutes } from "./auth/routes.js";
@@ -16,8 +17,10 @@ import { env } from "./env.js";
 import { loggableError, registerErrorHandler } from "./lib/errors.js";
 import { pingRedis } from "./redis/client.js";
 import { registerSessionRoutes } from "./sessions/routes.js";
+import { registerWsRoutes } from "./ws/routes.js";
 
 const jsonBodyLimitBytes = 102400;
+const wsMaxPayloadBytes = 65536;
 
 export const buildApp = (): FastifyInstance => {
   const app = Fastify({
@@ -38,6 +41,7 @@ export const buildApp = (): FastifyInstance => {
   });
   app.register(cookie);
   app.register(multipart, { limits: { fileSize: BANNER_MAX_BYTES, files: 1 } });
+  app.register(websocket, { options: { maxPayload: wsMaxPayloadBytes } });
 
   registerErrorHandler(app);
 
@@ -62,6 +66,7 @@ export const buildApp = (): FastifyInstance => {
   app.register(registerPrivacyRoutes, { prefix: API_PREFIX });
   app.register(registerSessionRoutes, { prefix: API_PREFIX });
   app.register(registerAccountRoutes, { prefix: API_PREFIX });
+  app.register(registerWsRoutes, { prefix: API_PREFIX });
 
   return app;
 };

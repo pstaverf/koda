@@ -47,6 +47,20 @@ const reuseGraceMs = 10000;
 const rotatedRecordMaxSeconds = 7 * 24 * 60 * 60;
 
 const rotatedKey = (refreshHash: string): string => `refresh:rotated:${refreshHash}`;
+const revokedSidKey = (sessionId: string): string => `revoked:sid:${sessionId}`;
+
+export const markSessionsRevoked = async (rows: readonly { id: string }[]): Promise<void> => {
+  if (rows.length === 0) {
+    return;
+  }
+  const pipeline = redis.pipeline();
+  for (const row of rows) {
+    pipeline.set(revokedSidKey(row.id), "1", "EX", env.accessTokenTtlSeconds);
+  }
+  await pipeline.exec();
+};
+
+export const isSessionRevoked = async (sessionId: string): Promise<boolean> => (await redis.exists(revokedSidKey(sessionId))) === 1;
 
 export const refreshMaxAgeSeconds = (): number => env.refreshTokenTtlDays * 24 * 60 * 60;
 
@@ -106,24 +120,30 @@ export const findActiveUser = async (userId: string): Promise<User | null> => {
 };
 
 export const revokeFamily = async (familyId: string): Promise<void> => {
-  await db
+  const revoked = await db
     .update(sessions)
     .set({ revokedAt: new Date() })
-    .where(and(eq(sessions.familyId, familyId), isNull(sessions.revokedAt)));
+    .where(and(eq(sessions.familyId, familyId), isNull(sessions.revokedAt)))
+    .returning({ id: sessions.id });
+  await markSessionsRevoked(revoked);
 };
 
 export const revokeOtherUserSessions = async (userId: string, keepSessionId: string): Promise<void> => {
-  await db
+  const revoked = await db
     .update(sessions)
     .set({ revokedAt: new Date() })
-    .where(and(eq(sessions.userId, userId), ne(sessions.id, keepSessionId), isNull(sessions.revokedAt)));
+    .where(and(eq(sessions.userId, userId), ne(sessions.id, keepSessionId), isNull(sessions.revokedAt)))
+    .returning({ id: sessions.id });
+  await markSessionsRevoked(revoked);
 };
 
 export const revokeAllUserSessions = async (userId: string): Promise<void> => {
-  await db
+  const revoked = await db
     .update(sessions)
     .set({ revokedAt: new Date() })
-    .where(and(eq(sessions.userId, userId), isNull(sessions.revokedAt)));
+    .where(and(eq(sessions.userId, userId), isNull(sessions.revokedAt)))
+    .returning({ id: sessions.id });
+  await markSessionsRevoked(revoked);
 };
 
 const classifyFailedRotation = async (refreshHash: string): Promise<RotationFailure> => {
@@ -193,8 +213,10 @@ export const findActiveSessionByToken = async (
 };
 
 export const revokeSessionByToken = async (refreshToken: string): Promise<void> => {
-  await db
+  const revoked = await db
     .update(sessions)
     .set({ revokedAt: new Date() })
-    .where(and(eq(sessions.refreshHash, sha256Hex(refreshToken)), isNull(sessions.revokedAt)));
+    .where(and(eq(sessions.refreshHash, sha256Hex(refreshToken)), isNull(sessions.revokedAt)))
+    .returning({ id: sessions.id });
+  await markSessionsRevoked(revoked);
 };

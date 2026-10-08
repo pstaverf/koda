@@ -1,4 +1,3 @@
-import { PRESENCE_TTL_SECONDS } from "@koda/shared/constants";
 import type { ContentAudience, LastSeenAudience } from "@koda/shared/privacy";
 import type {
   CurrentUser,
@@ -14,6 +13,7 @@ import { AppError } from "../lib/errors.js";
 import { formatExactLastSeen, formatRecentLastSeen, lastSeenLongAgoText, onlineText } from "../lib/time.js";
 import { presentCurrentUser } from "../auth/session.js";
 import { deleteObject, presignedGetUrlOrNull } from "../media/storage.js";
+import { redis } from "../redis/client.js";
 
 type Relation = {
   state: FriendState;
@@ -87,6 +87,11 @@ const readBlocks = async (viewerId: string, targetId: string): Promise<{ byMe: b
   };
 };
 
+export const presenceKey = (userId: string): string => `presence:${userId}`;
+
+export const isUserOnline = async (userId: string): Promise<boolean> =>
+  Number((await redis.hget(presenceKey(userId), "connections")) ?? "0") > 0;
+
 const readLastSeenAt = async (userId: string): Promise<Date | null> => {
   const rows = await db.select({ lastSeenAt: presence.lastSeenAt }).from(presence).where(eq(presence.userId, userId)).limit(1);
   return rows[0]?.lastSeenAt ?? null;
@@ -103,6 +108,7 @@ const longAgoPresence: ProfileView["presence"] = {
 };
 
 const buildPresence = (
+  online: boolean,
   lastSeenAt: Date | null,
   targetPrivacy: PrivacySettingsRow,
   viewerPrivacy: PrivacySettingsRow,
@@ -117,13 +123,13 @@ const buildPresence = (
   if (!audienceAllows(targetPrivacy.lastSeenAudience, isSelf, friends)) {
     return longAgoPresence;
   }
+  if (online) {
+    return { status: "online", lastSeen: { hidden: false, text: onlineText } };
+  }
   if (lastSeenAt === null) {
     return longAgoPresence;
   }
   const now = new Date();
-  if (now.getTime() - lastSeenAt.getTime() <= PRESENCE_TTL_SECONDS * 1000) {
-    return { status: "online", lastSeen: { hidden: false, text: onlineText } };
-  }
   const text =
     targetPrivacy.lastSeenFormat === "exact"
       ? formatExactLastSeen(lastSeenAt, now, timeZone)
@@ -184,18 +190,19 @@ export const getProfileView = async (viewerId: string, publicId: string, timeZon
   if (blockState.byTarget) {
     throw new AppError("NOT_FOUND");
   }
-  const [relation, targetPrivacy, viewerPrivacy, lastSeenAt] = await Promise.all([
+  const [relation, targetPrivacy, viewerPrivacy, lastSeenAt, online] = await Promise.all([
     readRelation(viewerId, target.id),
     readPrivacy(target.id),
     readPrivacy(viewerId),
-    readLastSeenAt(target.id)
+    readLastSeenAt(target.id),
+    isUserOnline(target.id)
   ]);
   const restricted = blockState.byMe;
   const bioVisible = !restricted && audienceAllows(targetPrivacy.bioAudience, isSelf, relation.friends);
   const bannerVisible = !restricted && audienceAllows(targetPrivacy.bannerAudience, isSelf, relation.friends);
   const presenceView = restricted
     ? hiddenPresence
-    : buildPresence(lastSeenAt, targetPrivacy, viewerPrivacy, isSelf, relation.friends, timeZone);
+    : buildPresence(online, lastSeenAt, targetPrivacy, viewerPrivacy, isSelf, relation.friends, timeZone);
   return {
     user: await buildPublicUser(target, bioVisible, bannerVisible),
     presence: presenceView,
@@ -204,4 +211,28 @@ export const getProfileView = async (viewerId: string, publicId: string, timeZon
     bioVisible,
     bannerVisible
   };
+};
+
+export const getPresenceView = async (
+  viewerId: string,
+  targetId: string,
+  timeZone: string
+): Promise<ProfileView["presence"] | null> => {
+  const target = await findActiveUserBy(eq(users.id, targetId));
+  if (target === null || target.displayName === null) {
+    return null;
+  }
+  const isSelf = target.id === viewerId;
+  const blockState = isSelf ? { byMe: false, byTarget: false } : await readBlocks(viewerId, target.id);
+  if (blockState.byTarget || blockState.byMe) {
+    return null;
+  }
+  const [relation, targetPrivacy, viewerPrivacy, lastSeenAt, online] = await Promise.all([
+    readRelation(viewerId, target.id),
+    readPrivacy(target.id),
+    readPrivacy(viewerId),
+    readLastSeenAt(target.id),
+    isUserOnline(target.id)
+  ]);
+  return buildPresence(online, lastSeenAt, targetPrivacy, viewerPrivacy, isSelf, relation.friends, timeZone);
 };

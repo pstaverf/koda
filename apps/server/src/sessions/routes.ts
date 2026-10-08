@@ -1,6 +1,5 @@
 import { sessionParamsSchema } from "@koda/shared/sessions";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
-import { clearRefreshCookie } from "../lib/cookies.js";
 import { validateInput } from "../lib/errors.js";
 import { authGuard, cookieRouteGuard, requireSessionId, requireUserId } from "../lib/guards.js";
 import { listSessions, revokeOwnSession } from "./service.js";
@@ -14,10 +13,7 @@ const deleteSession = async (request: FastifyRequest, reply: FastifyReply): Prom
   const userId = requireUserId(request);
   const currentSessionId = requireSessionId(request);
   const params = validateInput(sessionParamsSchema, request.params);
-  await revokeOwnSession(userId, params.sessionId);
-  if (params.sessionId === currentSessionId) {
-    clearRefreshCookie(reply);
-  }
+  await revokeOwnSession(userId, currentSessionId, params.sessionId);
   await reply.send({ data: null });
 };
 
