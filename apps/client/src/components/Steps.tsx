@@ -15,7 +15,7 @@ export const Steps = ({ steps, current }: StepsProps) => (
         return (
           <li key={title} className={`steps-item is-${state}`} aria-current={state === "current" ? "step" : undefined}>
             <span className="steps-dot">
-              {state === "done" ? <Check size={12} strokeWidth={3} aria-hidden="true" /> : <span>{index + 1}</span>}
+              {state === "done" ? <Check size={20} strokeWidth={1.75} aria-hidden="true" /> : <span>{index + 1}</span>}
             </span>
             <span className="steps-title">{title}</span>
           </li>

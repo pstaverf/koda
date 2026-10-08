@@ -29,7 +29,7 @@ export const GlassButton = forwardRef<HTMLButtonElement, GlassButtonProps>(
     ]
       .filter(Boolean)
       .join(" ");
-    const iconSize = size === "lg" ? 20 : size === "sm" ? 16 : 18;
+    const iconSize = size === "lg" ? 24 : 20;
     return (
       <button
         ref={ref}
@@ -39,7 +39,11 @@ export const GlassButton = forwardRef<HTMLButtonElement, GlassButtonProps>(
         aria-busy={loading}
         {...rest}
       >
-        {loading ? <Spinner size={iconSize} /> : Icon === undefined ? null : <Icon size={iconSize} strokeWidth={2} aria-hidden="true" />}
+        {loading ? (
+          <Spinner size={iconSize} />
+        ) : Icon === undefined ? null : (
+          <Icon size={iconSize} strokeWidth={1.75} aria-hidden="true" />
+        )}
         {iconOnly ? null : <span className="glass-button-label">{children}</span>}
       </button>
     );

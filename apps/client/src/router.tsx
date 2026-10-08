@@ -25,7 +25,7 @@ type RedirectState = {
 const SessionSplash = () => (
   <div className="screen-center" aria-busy="true">
     <KodaLogo size={56} />
-    <Spinner size={22} label={strings.common.loading} />
+    <Spinner size={24} label={strings.common.loading} />
   </div>
 );
 
@@ -75,7 +75,7 @@ const HomeRedirect = () => {
 const NotFound = () => (
   <div className="screen-center">
     <GlassPanel variant="strong" className="not-found">
-      <Compass size={40} strokeWidth={1.5} aria-hidden="true" />
+      <Compass size={24} strokeWidth={1.75} aria-hidden="true" />
       <h1 className="title-2">{strings.notFound.title}</h1>
       <p className="text-secondary">{strings.notFound.text}</p>
       <GlassButton variant="primary" onClick={() => router.navigate(paths.home)}>

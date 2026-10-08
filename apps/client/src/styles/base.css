@@ -128,8 +128,8 @@ svg {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: var(--space-6);
-  padding: var(--space-6);
+  gap: var(--space-5);
+  padding: var(--space-5);
 }
 
 .not-found {
@@ -208,8 +208,8 @@ svg {
 }
 
 .steps-dot {
-  width: 24px;
-  height: 24px;
+  width: 28px;
+  height: 28px;
   border-radius: var(--radius-pill);
   display: inline-flex;
   align-items: center;
@@ -259,8 +259,8 @@ svg {
 }
 
 .modal {
-  width: min(100%, 480px);
-  max-height: calc(100dvh - var(--space-8));
+  width: min(100%, var(--modal-max));
+  max-height: calc(100dvh - var(--space-6));
   display: flex;
   flex-direction: column;
   border-radius: var(--radius-xl);
@@ -302,13 +302,35 @@ svg {
   border-top: 1px solid var(--glass-border);
 }
 
+@media (max-width: 640px) {
+  .modal-backdrop {
+    align-items: flex-end;
+    padding: 0;
+  }
+
+  .modal {
+    width: 100%;
+    max-height: 90dvh;
+    border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  .modal-header {
+    padding-top: var(--space-4);
+  }
+
+  .modal-footer {
+    padding-bottom: var(--space-4);
+  }
+}
+
 .toasts {
   position: fixed;
   z-index: var(--z-toast);
   left: 50%;
-  bottom: max(var(--space-6), env(safe-area-inset-bottom));
+  bottom: max(var(--space-5), env(safe-area-inset-bottom));
   transform: translateX(-50%);
-  width: min(calc(100% - var(--space-8)), 420px);
+  width: min(calc(100% - var(--space-6)), 420px);
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
@@ -350,7 +372,7 @@ svg {
   background: transparent;
   color: var(--color-text-tertiary);
   padding: var(--space-1);
-  border-radius: var(--radius-xs);
+  border-radius: var(--radius-sm);
   display: inline-flex;
 }
 

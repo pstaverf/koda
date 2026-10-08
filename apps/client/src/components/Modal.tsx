@@ -76,13 +76,13 @@ export const Modal = ({ open, title, onClose, children, footer, closeOnBackdrop 
         }
       }}
     >
-      <div ref={dialogRef} className="modal glass-strong scale-in" role="dialog" aria-modal="true" aria-labelledby={titleId} tabIndex={-1}>
+      <div ref={dialogRef} className="modal glass-strong sheet-in" role="dialog" aria-modal="true" aria-labelledby={titleId} tabIndex={-1}>
         <header className="modal-header">
           <h2 id={titleId} className="title-3">
             {title}
           </h2>
           <button type="button" className="modal-close glass-pill" onClick={onClose} aria-label={strings.common.close}>
-            <X size={18} strokeWidth={2} aria-hidden="true" />
+            <X size={20} strokeWidth={1.75} aria-hidden="true" />
           </button>
         </header>
         <div className="modal-body">{children}</div>

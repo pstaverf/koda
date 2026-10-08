@@ -24,6 +24,17 @@
   }
 }
 
+@keyframes sheet-up {
+  from {
+    opacity: 0;
+    transform: translateY(24px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 @keyframes slide-up {
   from {
     opacity: 0;
@@ -87,6 +98,16 @@
 
 .scale-in {
   animation: scale-in var(--duration-normal) var(--ease-out) both;
+}
+
+.sheet-in {
+  animation: scale-in var(--duration-normal) var(--ease-out) both;
+}
+
+@media (max-width: 640px) {
+  .sheet-in {
+    animation: sheet-up var(--duration-normal) var(--ease-out) both;
+  }
 }
 
 .slide-up {

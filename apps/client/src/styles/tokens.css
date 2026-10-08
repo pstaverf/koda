@@ -38,22 +38,19 @@
   --shadow-lg: 0 24px 64px rgba(0, 0, 0, 0.55);
   --focus-ring: 0 0 0 3px rgba(10, 132, 255, 0.45);
 
-  --radius-xs: 8px;
   --radius-sm: 12px;
-  --radius-md: 18px;
-  --radius-lg: 24px;
-  --radius-xl: 32px;
+  --radius-md: 16px;
+  --radius-lg: 20px;
+  --radius-xl: 28px;
   --radius-pill: 999px;
 
   --space-1: 4px;
   --space-2: 8px;
   --space-3: 12px;
   --space-4: 16px;
-  --space-5: 20px;
-  --space-6: 24px;
-  --space-8: 32px;
-  --space-10: 40px;
-  --space-12: 48px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
 
   --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Inter", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   --font-mono: "SF Mono", ui-monospace, Menlo, Consolas, monospace;
@@ -67,9 +64,10 @@
   --leading-tight: 1.2;
   --leading-normal: 1.45;
 
-  --control-height-sm: 36px;
-  --control-height-md: 44px;
-  --control-height-lg: 52px;
+  --control-height: 48px;
+  --sidebar-width: 320px;
+  --bottom-nav-height: 64px;
+  --modal-max: 440px;
 
   --duration-fast: 140ms;
   --duration-normal: 240ms;
