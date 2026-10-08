@@ -202,8 +202,8 @@
 - `cooldown:code:{email_hash}` — пауза повторной отправки, TTL 60 с
 - `rl:code:email:{email_hash}` — лимит кодов на email, окно 1 ч
 - `rl:code:ip:{ip}` — лимит кодов на IP, окно 1 ч
-- `fail:login:{email_hash}` — неудачные входы по email, капча с 3-й неудачи, TTL 3600 с
-- `fail:login:ip:{ip}` — неудачные входы с IP, капча с 3-й неудачи, TTL 3600 с
+- `fail:login:{email_hash}` — неудачные входы по email, после 3 неудач нужна капча, TTL 3600 с
+- `fail:login:ip:{ip}` — неудачные входы с IP, после 3 неудач нужна капча, TTL 3600 с
 - `rl:login:{ip}` — лимит попыток входа с IP, 30 в час
 - `refresh:rotated:{refresh_hash}` — след ротированного refresh-токена `{ familyId, rotatedAt }`, TTL до истечения сессии; повтор в течение 10 с отклоняется без отзыва, позже отзывает всю family_id
 
