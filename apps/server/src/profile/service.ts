@@ -3,7 +3,6 @@ import type { ContentAudience, LastSeenAudience } from "@koda/shared/privacy";
 import type {
   CurrentUser,
   FriendState,
-  LastSeenView,
   ProfileView,
   PublicUser,
   UpdateProfileInput
@@ -12,10 +11,9 @@ import { and, eq, isNull, or } from "drizzle-orm";
 import { db } from "../db/client.js";
 import { blocks, friendships, presence, privacySettings, users, type PrivacySettingsRow, type User } from "../db/schema.js";
 import { AppError } from "../lib/errors.js";
+import { formatExactLastSeen, formatRecentLastSeen, lastSeenLongAgoText, onlineText } from "../lib/time.js";
 import { presentCurrentUser } from "../auth/session.js";
 import { deleteObject, presignedGetUrlOrNull } from "../media/storage.js";
-
-const dayMs = 24 * 60 * 60 * 1000;
 
 type Relation = {
   state: FriendState;
@@ -97,42 +95,39 @@ const readLastSeenAt = async (userId: string): Promise<Date | null> => {
 const audienceAllows = (audience: ContentAudience | LastSeenAudience, isSelf: boolean, friends: boolean): boolean =>
   isSelf || audience === "all" || (audience === "friends" && friends);
 
-const recentLastSeenText = (lastSeenAt: Date, now: number): string => {
-  const elapsed = now - lastSeenAt.getTime();
-  if (elapsed <= 3 * dayMs) {
-    return "recently";
-  }
-  if (elapsed <= 7 * dayMs) {
-    return "within_week";
-  }
-  if (elapsed <= 30 * dayMs) {
-    return "within_month";
-  }
-  return "long_ago";
-};
+const hiddenPresence: ProfileView["presence"] = { status: "hidden", lastSeen: { hidden: true, text: null } };
 
-const hiddenLastSeen: LastSeenView = { hidden: true, text: null };
+const longAgoPresence: ProfileView["presence"] = {
+  status: "offline",
+  lastSeen: { hidden: false, text: lastSeenLongAgoText }
+};
 
 const buildPresence = (
   lastSeenAt: Date | null,
   targetPrivacy: PrivacySettingsRow,
   viewerPrivacy: PrivacySettingsRow,
   isSelf: boolean,
-  friends: boolean
+  friends: boolean,
+  timeZone: string
 ): ProfileView["presence"] => {
-  const targetAllows = audienceAllows(targetPrivacy.lastSeenAudience, isSelf, friends);
-  const viewerShares = isSelf || !targetPrivacy.lastSeenReciprocal || audienceAllows(viewerPrivacy.lastSeenAudience, false, friends);
-  if (!targetAllows || !viewerShares) {
-    return { status: "hidden", lastSeen: hiddenLastSeen };
+  const viewerHidesSelf = !audienceAllows(viewerPrivacy.lastSeenAudience, isSelf, friends);
+  if (!isSelf && viewerPrivacy.lastSeenReciprocal && viewerHidesSelf) {
+    return hiddenPresence;
+  }
+  if (!audienceAllows(targetPrivacy.lastSeenAudience, isSelf, friends)) {
+    return longAgoPresence;
   }
   if (lastSeenAt === null) {
-    return { status: "offline", lastSeen: { hidden: false, text: null } };
+    return longAgoPresence;
   }
-  const now = Date.now();
-  if (now - lastSeenAt.getTime() <= PRESENCE_TTL_SECONDS * 1000) {
-    return { status: "online", lastSeen: { hidden: false, text: null } };
+  const now = new Date();
+  if (now.getTime() - lastSeenAt.getTime() <= PRESENCE_TTL_SECONDS * 1000) {
+    return { status: "online", lastSeen: { hidden: false, text: onlineText } };
   }
-  const text = targetPrivacy.lastSeenFormat === "exact" ? lastSeenAt.toISOString() : recentLastSeenText(lastSeenAt, now);
+  const text =
+    targetPrivacy.lastSeenFormat === "exact"
+      ? formatExactLastSeen(lastSeenAt, now, timeZone)
+      : formatRecentLastSeen(lastSeenAt, now);
   return { status: "offline", lastSeen: { hidden: false, text } };
 };
 
@@ -179,7 +174,7 @@ export const updateOwnProfile = async (userId: string, input: UpdateProfileInput
   return presentCurrentUser(row);
 };
 
-export const getProfileView = async (viewerId: string, publicId: string): Promise<ProfileView> => {
+export const getProfileView = async (viewerId: string, publicId: string, timeZone: string): Promise<ProfileView> => {
   const target = await findActiveUserBy(eq(users.publicId, publicId));
   if (target === null || target.displayName === null) {
     throw new AppError("NOT_FOUND");
@@ -199,8 +194,8 @@ export const getProfileView = async (viewerId: string, publicId: string): Promis
   const bioVisible = !restricted && audienceAllows(targetPrivacy.bioAudience, isSelf, relation.friends);
   const bannerVisible = !restricted && audienceAllows(targetPrivacy.bannerAudience, isSelf, relation.friends);
   const presenceView = restricted
-    ? { status: "hidden" as const, lastSeen: hiddenLastSeen }
-    : buildPresence(lastSeenAt, targetPrivacy, viewerPrivacy, isSelf, relation.friends);
+    ? hiddenPresence
+    : buildPresence(lastSeenAt, targetPrivacy, viewerPrivacy, isSelf, relation.friends, timeZone);
   return {
     user: await buildPublicUser(target, bioVisible, bannerVisible),
     presence: presenceView,

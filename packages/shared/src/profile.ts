@@ -126,11 +126,6 @@ export const publicIdParamsSchema = z.object({
 });
 export type PublicIdParams = z.infer<typeof publicIdParamsSchema>;
 
-export const bannerKeyInput = z.object({
-  bannerKey: z.string().min(1, { error: "BANNER_INVALID" })
-});
-export type BannerKeyInput = z.infer<typeof bannerKeyInput>;
-
 export type AvatarResult = {
   avatarUrl: string | null;
 };
