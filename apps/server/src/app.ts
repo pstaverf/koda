@@ -10,10 +10,12 @@ import { env } from "./env.js";
 import { loggableError, registerErrorHandler } from "./lib/errors.js";
 import { pingRedis } from "./redis/client.js";
 
+const jsonBodyLimitBytes = 102400;
+
 export const buildApp = (): FastifyInstance => {
   const app = Fastify({
     trustProxy: env.trustProxy,
-    bodyLimit: env.bodyLimitBytes,
+    bodyLimit: jsonBodyLimitBytes,
     logger: {
       level: env.logLevel,
       redact: ["req.headers.authorization", "req.headers.cookie", "res.headers.set-cookie"]

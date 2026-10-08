@@ -18,7 +18,10 @@ type PgFailure = {
   constraint?: string;
 };
 
+const registrationLockSeconds = 30;
+
 const registrationKey = (token: string): string => `reg:${token}`;
+const registrationLockKey = (token: string): string => `reg-lock:${token}`;
 
 const pgFailure = (error: unknown): PgFailure | null => {
   if (typeof error !== "object" || error === null) {
@@ -37,12 +40,11 @@ export const readRegistration = async (token: string): Promise<RegistrationRecor
   return JSON.parse(raw) as RegistrationRecord;
 };
 
-export const takeRegistration = async (token: string): Promise<RegistrationRecord | null> => {
-  const raw = await redis.getdel(registrationKey(token));
-  if (raw === null) {
-    return null;
-  }
-  return JSON.parse(raw) as RegistrationRecord;
+export const lockRegistration = async (token: string): Promise<boolean> =>
+  (await redis.set(registrationLockKey(token), "1", "EX", registrationLockSeconds, "NX")) === "OK";
+
+export const unlockRegistration = async (token: string): Promise<void> => {
+  await redis.del(registrationLockKey(token));
 };
 
 export const createRegistration = async (email: string, step: RegistrationStep): Promise<string> => {

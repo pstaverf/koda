@@ -190,6 +190,19 @@
 - `pnpm run db:migrate`
 - `pnpm run db:generate`
 
+## Окружение
+
+- `COOKIE_SECURE=false` допустим только для локальной разработки; в production должно быть `COOKIE_SECURE=true`, иначе сервер не стартует.
+
+## Схема Redis
+
+- `reg:{token}` — состояние регистрации `{ email, step }`, TTL 1800 с
+- `reg-lock:{token}` — блокировка шага пароля на время запроса, SET NX, TTL 30 с
+- `code:{email_hash}` — код `{ hash, salt, purpose, attempts }`, TTL 600 с
+- `cooldown:code:{email_hash}` — пауза повторной отправки, TTL 60 с
+- `rl:code:email:{email_hash}` — лимит кодов на email, окно 1 ч
+- `rl:code:ip:{ip}` — лимит кодов на IP, окно 1 ч
+
 ## Запуск
 
 - `pnpm run dev`

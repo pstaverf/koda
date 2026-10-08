@@ -25,7 +25,8 @@ import {
   findUserIdByEmail,
   randomRegistrationToken,
   readRegistration,
-  takeRegistration,
+  lockRegistration,
+  unlockRegistration,
   updateDisplayName
 } from "./register.js";
 import { buildCurrentUser, createSession } from "./session.js";
@@ -79,6 +80,9 @@ const verifyRegistrationCode = async (request: FastifyRequest, reply: FastifyRep
     throw new AppError("CODE_INVALID");
   }
   const result = await checkCode(hashEmail(record.email), input.code, "register");
+  if (result === "exceeded") {
+    await deleteRegistration(token);
+  }
   if (result !== "valid") {
     throw new AppError("CODE_INVALID");
   }
@@ -104,22 +108,28 @@ const resendRegistrationCode = async (request: FastifyRequest, reply: FastifyRep
   await reply.send({ data: null });
 };
 
-const registerPassword = async (request: FastifyRequest, reply: FastifyReply): Promise<void> => {
-  const input = validateInput(registerPasswordInput, request.body);
-  const record = await takeRegistration(input.registrationToken);
+const createAccountFromRegistration = async (
+  request: FastifyRequest,
+  reply: FastifyReply,
+  token: string,
+  password: string,
+  turnstileToken: string
+): Promise<void> => {
+  const record = await readRegistration(token);
   if (record === null) {
     throw new AppError("REGISTRATION_TOKEN_INVALID");
   }
   if (record.step !== "password") {
     throw new AppError("REGISTRATION_STEP_INVALID");
   }
-  await verifyTurnstile(input.turnstileToken, request.ip);
+  await verifyTurnstile(turnstileToken, request.ip);
   const existingUserId = await findUserIdByEmail(record.email);
   if (existingUserId !== null) {
     throw new AppError("EMAIL_ALREADY_USED");
   }
-  const passwordHash = await hashPassword(input.password);
+  const passwordHash = await hashPassword(password);
   const user = await createAccount(record.email, passwordHash);
+  await deleteRegistration(token);
   const session = await createSession({
     userId: user.id,
     userAgent: request.headers["user-agent"] ?? null,
@@ -129,6 +139,18 @@ const registerPassword = async (request: FastifyRequest, reply: FastifyReply): P
   clearRegistrationCookie(reply);
   const payload: AuthSession = { accessToken: session.accessToken, user: buildCurrentUser(user, null, null) };
   await reply.send({ data: payload });
+};
+
+const registerPassword = async (request: FastifyRequest, reply: FastifyReply): Promise<void> => {
+  const input = validateInput(registerPasswordInput, request.body);
+  if (!(await lockRegistration(input.registrationToken))) {
+    throw new AppError("REGISTRATION_TOKEN_INVALID");
+  }
+  try {
+    await createAccountFromRegistration(request, reply, input.registrationToken, input.password, input.turnstileToken);
+  } finally {
+    await unlockRegistration(input.registrationToken);
+  }
 };
 
 const finishRegistration = async (request: FastifyRequest, reply: FastifyReply): Promise<void> => {
