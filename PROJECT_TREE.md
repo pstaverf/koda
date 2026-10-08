@@ -205,7 +205,7 @@
 - `fail:login:{email_hash}` — неудачные входы по email, после 3 неудач нужна капча, TTL 3600 с
 - `fail:login:ip:{ip}` — неудачные входы с IP, после 3 неудач нужна капча, TTL 3600 с
 - `rl:login:{ip}` — лимит попыток входа с IP, 30 в час
-- `refresh:rotated:{refresh_hash}` — след ротированного refresh-токена `{ familyId, rotatedAt }`, TTL до истечения сессии; повтор в течение 10 с отклоняется без отзыва, позже отзывает всю family_id
+- `refresh:rotated:{refresh_hash}` — след ротированного refresh-токена `{ familyId, rotatedAt }`, TTL 7 дней или остаток срока сессии, если он меньше; повтор в течение 10 с отклоняется без отзыва и без очистки cookie, позже отзывает всю family_id и очищает cookie
 
 ## Запуск
 

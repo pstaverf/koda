@@ -34,12 +34,17 @@ export type RotatedSession = CreatedSession & {
   user: User;
 };
 
+export type RotationFailure = "superseded" | "reused" | "invalid";
+
+export type RotationResult = { ok: true; session: RotatedSession } | { ok: false; reason: RotationFailure };
+
 type RotationRecord = {
   familyId: string;
   rotatedAt: number;
 };
 
 const reuseGraceMs = 10000;
+const rotatedRecordMaxSeconds = 7 * 24 * 60 * 60;
 
 const rotatedKey = (refreshHash: string): string => `refresh:rotated:${refreshHash}`;
 
@@ -114,18 +119,20 @@ export const revokeAllUserSessions = async (userId: string): Promise<void> => {
     .where(and(eq(sessions.userId, userId), isNull(sessions.revokedAt)));
 };
 
-const handleFailedRotation = async (refreshHash: string): Promise<never> => {
+const classifyFailedRotation = async (refreshHash: string): Promise<RotationFailure> => {
   const raw = await redis.get(rotatedKey(refreshHash));
-  if (raw !== null) {
-    const record = JSON.parse(raw) as RotationRecord;
-    if (Date.now() - record.rotatedAt > reuseGraceMs) {
-      await revokeFamily(record.familyId);
-    }
+  if (raw === null) {
+    return "invalid";
   }
-  throw new AppError("REFRESH_TOKEN_INVALID");
+  const record = JSON.parse(raw) as RotationRecord;
+  if (Date.now() - record.rotatedAt <= reuseGraceMs) {
+    return "superseded";
+  }
+  await revokeFamily(record.familyId);
+  return "reused";
 };
 
-export const rotateSession = async (refreshToken: string, context: RequestContext): Promise<RotatedSession> => {
+export const rotateSession = async (refreshToken: string, context: RequestContext): Promise<RotationResult> => {
   const refreshHash = sha256Hex(refreshToken);
   const nextToken = createRefreshToken();
   const now = new Date();
@@ -146,18 +153,23 @@ export const rotateSession = async (refreshToken: string, context: RequestContex
     });
   const row = updated[0];
   if (row === undefined) {
-    return handleFailedRotation(refreshHash);
+    return { ok: false, reason: await classifyFailedRotation(refreshHash) };
   }
   const maxAgeSeconds = Math.max(1, Math.floor((row.expiresAt.getTime() - now.getTime()) / 1000));
   const record: RotationRecord = { familyId: row.familyId, rotatedAt: now.getTime() };
-  await redis.set(rotatedKey(refreshHash), JSON.stringify(record), "EX", maxAgeSeconds);
+  await redis.set(
+    rotatedKey(refreshHash),
+    JSON.stringify(record),
+    "EX",
+    Math.min(rotatedRecordMaxSeconds, maxAgeSeconds)
+  );
   const user = await findActiveUser(row.userId);
   if (user === null) {
     await revokeFamily(row.familyId);
-    throw new AppError("REFRESH_TOKEN_INVALID");
+    return { ok: false, reason: "invalid" };
   }
   const accessToken = await createAccessToken(row.userId);
-  return { sessionId: row.id, user, accessToken, refreshToken: nextToken, maxAgeSeconds };
+  return { ok: true, session: { sessionId: row.id, user, accessToken, refreshToken: nextToken, maxAgeSeconds } };
 };
 
 export const findActiveSessionByToken = async (

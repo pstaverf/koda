@@ -10,12 +10,12 @@ import {
   resetPasswordRequestInput,
   verifyCodeInput
 } from "@koda/shared/auth";
-import { REFRESH_COOKIE_NAME } from "@koda/shared/constants";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { AppError, validateInput } from "../lib/errors.js";
 import {
   clearRefreshCookie,
   clearRegistrationCookie,
+  refreshCookie,
   registrationCookie,
   setRefreshCookie,
   setRegistrationCookie
@@ -23,9 +23,10 @@ import {
 import { apiGuard, authGuard, cookieRouteGuard, requireUserId } from "../lib/guards.js";
 import { hashEmail } from "../lib/hash.js";
 import { hashPassword } from "../lib/password.js";
+import { holdMinimumLatency } from "../lib/time.js";
 import { verifyTurnstile } from "../lib/turnstile.js";
 import { occupiedEmailMail, registrationCodeMail, type MailContent } from "../mail/templates.js";
-import { sendMail } from "../mail/mailer.js";
+import { sendMailQuietly } from "../mail/mailer.js";
 import { checkCode, codeMail, consumeCodeLimits, cooldownActive, issueCode, startCodeCooldown } from "./codes.js";
 import {
   createAccount,
@@ -53,26 +54,12 @@ import {
 
 const emailStepMinimumMs = 300;
 
-const holdEmailStepLatency = async (startedAt: number): Promise<void> => {
-  const remaining = emailStepMinimumMs - (Date.now() - startedAt);
-  if (remaining > 0) {
-    await new Promise((resolve) => {
-      setTimeout(resolve, remaining);
-    });
-  }
-};
-
 const sendQuietly = (to: string, content: MailContent): void => {
-  void sendMail({ to, ...content }).catch(() => undefined);
-};
-
-const refreshCookie = (request: FastifyRequest): string | null => {
-  const value = request.cookies[REFRESH_COOKIE_NAME];
-  return typeof value === "string" && value.length > 0 ? value : null;
+  sendMailQuietly({ to, ...content });
 };
 
 const registerEmail = async (request: FastifyRequest, reply: FastifyReply): Promise<void> => {
-  const latencyFloor = holdEmailStepLatency(Date.now());
+  const latencyFloor = holdMinimumLatency(Date.now(), emailStepMinimumMs);
   const input = validateInput(registerEmailInput, request.body);
   const previousToken = registrationCookie(request);
   if (previousToken !== null) {
@@ -205,15 +192,17 @@ const refresh = async (request: FastifyRequest, reply: FastifyReply): Promise<vo
     clearRefreshCookie(reply);
     throw new AppError("REFRESH_TOKEN_INVALID");
   }
-  try {
-    const rotated = await rotateSession(token, requestContext(request));
-    setRefreshCookie(reply, rotated.refreshToken, rotated.maxAgeSeconds);
-    const payload: AuthSession = await buildAuthSession(rotated.user, rotated.accessToken);
-    await reply.send({ data: payload });
-  } catch (error) {
-    clearRefreshCookie(reply);
-    throw error;
+  const rotation = await rotateSession(token, requestContext(request));
+  if (!rotation.ok) {
+    if (rotation.reason !== "superseded") {
+      clearRefreshCookie(reply);
+    }
+    throw new AppError("REFRESH_TOKEN_INVALID");
   }
+  const rotated = rotation.session;
+  setRefreshCookie(reply, rotated.refreshToken, rotated.maxAgeSeconds);
+  const payload: AuthSession = await buildAuthSession(rotated.user, rotated.accessToken);
+  await reply.send({ data: payload });
 };
 
 const logout = async (request: FastifyRequest, reply: FastifyReply): Promise<void> => {
