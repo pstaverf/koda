@@ -134,6 +134,9 @@ export const sendFriendRequest = async (userId: string, publicId: string): Promi
   if (target.id === me.id) {
     throw new AppError("FRIEND_SELF");
   }
+  if (!(await consumeLimit(`rl:friend_req:${me.id}`, FRIEND_REQUESTS_PER_DAY, friendRequestWindowSeconds))) {
+    throw new AppError("FRIEND_REQUEST_LIMIT");
+  }
   const outcome = await db.transaction(async (tx) => {
     await lockPair(tx, me.id, target.id);
     await assertNotBlocked(tx, me.id, target.id);
@@ -151,9 +154,6 @@ export const sendFriendRequest = async (userId: string, publicId: string): Promi
     }
     if ((await readRequestsAudience(tx, target.id)) === "nobody") {
       throw new AppError("FRIEND_REQUESTS_DISABLED");
-    }
-    if (!(await consumeLimit(`rl:friend_req:${me.id}`, FRIEND_REQUESTS_PER_DAY, friendRequestWindowSeconds))) {
-      throw new AppError("FRIEND_REQUEST_LIMIT");
     }
     const [userA, userB] = orderedPair(me.id, target.id);
     const inserted = await tx

@@ -7,6 +7,7 @@ import { verifyAccessToken } from "./tokens.js";
 declare module "fastify" {
   interface FastifyRequest {
     userId?: string;
+    sessionId?: string;
   }
 }
 
@@ -40,6 +41,14 @@ export const requireUserId = (request: FastifyRequest): string => {
   return userId;
 };
 
+export const requireSessionId = (request: FastifyRequest): string => {
+  const sessionId = request.sessionId;
+  if (sessionId === undefined) {
+    throw new AppError("UNAUTHORIZED");
+  }
+  return sessionId;
+};
+
 export const apiGuard = async (request: FastifyRequest): Promise<void> => {
   assertClient(request);
 };
@@ -52,9 +61,10 @@ export const cookieRouteGuard = async (request: FastifyRequest): Promise<void> =
 export const authGuard = async (request: FastifyRequest): Promise<void> => {
   assertClient(request);
   const token = bearerToken(request.headers.authorization);
-  const userId = token === null ? null : await verifyAccessToken(token);
-  if (userId === null) {
+  const claims = token === null ? null : await verifyAccessToken(token);
+  if (claims === null) {
     throw new AppError("UNAUTHORIZED");
   }
-  request.userId = userId;
+  request.userId = claims.userId;
+  request.sessionId = claims.sessionId;
 };

@@ -4,15 +4,18 @@ import cors from "@fastify/cors";
 import helmet from "@fastify/helmet";
 import multipart from "@fastify/multipart";
 import Fastify, { type FastifyInstance } from "fastify";
+import { registerAccountRoutes } from "./account/routes.js";
 import { registerAuthRoutes } from "./auth/routes.js";
 import { registerBlockRoutes } from "./blocks/routes.js";
 import { pingDatabase } from "./db/client.js";
 import { registerFriendRoutes } from "./friends/routes.js";
 import { registerMediaRoutes } from "./media/routes.js";
+import { registerPrivacyRoutes } from "./privacy/routes.js";
 import { registerProfileRoutes } from "./profile/routes.js";
 import { env } from "./env.js";
 import { loggableError, registerErrorHandler } from "./lib/errors.js";
 import { pingRedis } from "./redis/client.js";
+import { registerSessionRoutes } from "./sessions/routes.js";
 
 const jsonBodyLimitBytes = 102400;
 
@@ -56,6 +59,9 @@ export const buildApp = (): FastifyInstance => {
   app.register(registerMediaRoutes, { prefix: API_PREFIX });
   app.register(registerFriendRoutes, { prefix: API_PREFIX });
   app.register(registerBlockRoutes, { prefix: API_PREFIX });
+  app.register(registerPrivacyRoutes, { prefix: API_PREFIX });
+  app.register(registerSessionRoutes, { prefix: API_PREFIX });
+  app.register(registerAccountRoutes, { prefix: API_PREFIX });
 
   return app;
 };

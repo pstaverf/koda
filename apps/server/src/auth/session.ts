@@ -1,6 +1,6 @@
 import type { AuthSession } from "@koda/shared/auth";
 import type { CurrentUser } from "@koda/shared/profile";
-import { and, eq, gt, isNull } from "drizzle-orm";
+import { and, eq, gt, isNull, ne } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
 import { db } from "../db/client.js";
 import { sessions, users, type User } from "../db/schema.js";
@@ -69,7 +69,7 @@ export const createSession = async (context: SessionContext): Promise<CreatedSes
   if (created === undefined) {
     throw new AppError("INTERNAL_ERROR");
   }
-  const accessToken = await createAccessToken(context.userId);
+  const accessToken = await createAccessToken(context.userId, created.id);
   return { sessionId: created.id, accessToken, refreshToken, maxAgeSeconds };
 };
 
@@ -110,6 +110,13 @@ export const revokeFamily = async (familyId: string): Promise<void> => {
     .update(sessions)
     .set({ revokedAt: new Date() })
     .where(and(eq(sessions.familyId, familyId), isNull(sessions.revokedAt)));
+};
+
+export const revokeOtherUserSessions = async (userId: string, keepSessionId: string): Promise<void> => {
+  await db
+    .update(sessions)
+    .set({ revokedAt: new Date() })
+    .where(and(eq(sessions.userId, userId), ne(sessions.id, keepSessionId), isNull(sessions.revokedAt)));
 };
 
 export const revokeAllUserSessions = async (userId: string): Promise<void> => {
@@ -168,7 +175,7 @@ export const rotateSession = async (refreshToken: string, context: RequestContex
     await revokeFamily(row.familyId);
     return { ok: false, reason: "invalid" };
   }
-  const accessToken = await createAccessToken(row.userId);
+  const accessToken = await createAccessToken(row.userId, row.id);
   return { ok: true, session: { sessionId: row.id, user, accessToken, refreshToken: nextToken, maxAgeSeconds } };
 };
 
