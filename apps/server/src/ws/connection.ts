@@ -10,6 +10,7 @@ import { handlePresenceSubscribe, markConnected, markDisconnected, markHeartbeat
 
 const policyViolation = 1008;
 const unsupportedData = 1003;
+const internalError = 1011;
 
 export type WsConnection = {
   onPong: () => void;
@@ -70,9 +71,19 @@ export const createConnection = (socket: WebSocket, log: FastifyBaseLogger): WsC
     }
     clearTimeout(authTimer);
     const created: WsClient = { ...identity, subscriptions: new Set(), send, close };
+    try {
+      await markConnected(created.userId);
+    } catch (error) {
+      log.warn({ err: loggableError(error) }, "websocket presence registration failed");
+      close(internalError, "presence unavailable");
+      return;
+    }
+    if (closed) {
+      await markDisconnected(created.userId);
+      return;
+    }
     client = created;
     registerClient(created);
-    await markConnected(created.userId);
   };
 
   const route = async (current: WsClient, raw: string): Promise<void> => {
