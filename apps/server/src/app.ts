@@ -6,6 +6,8 @@ import multipart from "@fastify/multipart";
 import Fastify, { type FastifyInstance } from "fastify";
 import { registerAuthRoutes } from "./auth/routes.js";
 import { pingDatabase } from "./db/client.js";
+import { registerMediaRoutes } from "./media/routes.js";
+import { registerProfileRoutes } from "./profile/routes.js";
 import { env } from "./env.js";
 import { loggableError, registerErrorHandler } from "./lib/errors.js";
 import { pingRedis } from "./redis/client.js";
@@ -30,7 +32,7 @@ export const buildApp = (): FastifyInstance => {
     methods: ["GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"]
   });
   app.register(cookie);
-  app.register(multipart, { limits: { fileSize: BANNER_MAX_BYTES } });
+  app.register(multipart, { limits: { fileSize: BANNER_MAX_BYTES, files: 1 } });
 
   registerErrorHandler(app);
 
@@ -48,6 +50,8 @@ export const buildApp = (): FastifyInstance => {
   });
 
   app.register(registerAuthRoutes, { prefix: API_PREFIX });
+  app.register(registerProfileRoutes, { prefix: API_PREFIX });
+  app.register(registerMediaRoutes, { prefix: API_PREFIX });
 
   return app;
 };
