@@ -2,21 +2,31 @@ import {
   type AuthSession,
   type CodeVerified,
   finishRegistrationInput,
+  loginInput,
   registerEmailInput,
   registerPasswordInput,
   resendCodeInput,
+  resetPasswordConfirmInput,
+  resetPasswordRequestInput,
   verifyCodeInput
 } from "@koda/shared/auth";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { AppError, validateInput } from "../lib/errors.js";
-import { clearRegistrationCookie, registrationCookie, setRefreshCookie, setRegistrationCookie } from "../lib/cookies.js";
+import {
+  clearRefreshCookie,
+  clearRegistrationCookie,
+  refreshCookie,
+  registrationCookie,
+  setRefreshCookie,
+  setRegistrationCookie
+} from "../lib/cookies.js";
 import { apiGuard, authGuard, cookieRouteGuard, requireUserId } from "../lib/guards.js";
 import { hashEmail } from "../lib/hash.js";
 import { hashPassword } from "../lib/password.js";
+import { holdMinimumLatency } from "../lib/time.js";
 import { verifyTurnstile } from "../lib/turnstile.js";
 import { occupiedEmailMail, registrationCodeMail, type MailContent } from "../mail/templates.js";
-import { sendMail } from "../mail/mailer.js";
-import { presignedGetUrlOrNull } from "../media/storage.js";
+import { sendMailQuietly } from "../mail/mailer.js";
 import { checkCode, codeMail, consumeCodeLimits, cooldownActive, issueCode, startCodeCooldown } from "./codes.js";
 import {
   createAccount,
@@ -29,25 +39,27 @@ import {
   unlockRegistration,
   updateDisplayName
 } from "./register.js";
-import { buildCurrentUser, createSession } from "./session.js";
+import { authenticate } from "./login.js";
+import { confirmPasswordReset, requestPasswordReset } from "./reset.js";
+import {
+  buildAuthSession,
+  buildCurrentUser,
+  createSession,
+  findActiveSessionByToken,
+  presentCurrentUser,
+  revokeAllUserSessions,
+  revokeSessionByToken,
+  rotateSession
+} from "./session.js";
 
 const emailStepMinimumMs = 300;
 
-const holdEmailStepLatency = async (startedAt: number): Promise<void> => {
-  const remaining = emailStepMinimumMs - (Date.now() - startedAt);
-  if (remaining > 0) {
-    await new Promise((resolve) => {
-      setTimeout(resolve, remaining);
-    });
-  }
-};
-
 const sendQuietly = (to: string, content: MailContent): void => {
-  void sendMail({ to, ...content }).catch(() => undefined);
+  sendMailQuietly({ to, ...content });
 };
 
 const registerEmail = async (request: FastifyRequest, reply: FastifyReply): Promise<void> => {
-  const latencyFloor = holdEmailStepLatency(Date.now());
+  const latencyFloor = holdMinimumLatency(Date.now(), emailStepMinimumMs);
   const input = validateInput(registerEmailInput, request.body);
   const previousToken = registrationCookie(request);
   if (previousToken !== null) {
@@ -157,9 +169,71 @@ const finishRegistration = async (request: FastifyRequest, reply: FastifyReply):
   const userId = requireUserId(request);
   const input = validateInput(finishRegistrationInput, request.body);
   const user = await updateDisplayName(userId, input.displayName);
-  const avatarUrl = await presignedGetUrlOrNull(user.avatarKey);
-  const bannerUrl = await presignedGetUrlOrNull(user.bannerKey);
-  await reply.send({ data: { user: buildCurrentUser(user, avatarUrl, bannerUrl) } });
+  await reply.send({ data: { user: await presentCurrentUser(user) } });
+};
+
+const requestContext = (request: FastifyRequest): { userAgent: string | null; ip: string } => ({
+  userAgent: request.headers["user-agent"] ?? null,
+  ip: request.ip
+});
+
+const login = async (request: FastifyRequest, reply: FastifyReply): Promise<void> => {
+  const input = validateInput(loginInput, request.body);
+  const user = await authenticate(input, request.ip);
+  const session = await createSession({ userId: user.id, ...requestContext(request) });
+  setRefreshCookie(reply, session.refreshToken, session.maxAgeSeconds);
+  const payload: AuthSession = await buildAuthSession(user, session.accessToken);
+  await reply.send({ data: payload });
+};
+
+const refresh = async (request: FastifyRequest, reply: FastifyReply): Promise<void> => {
+  const token = refreshCookie(request);
+  if (token === null) {
+    clearRefreshCookie(reply);
+    throw new AppError("REFRESH_TOKEN_INVALID");
+  }
+  try {
+    const rotated = await rotateSession(token, requestContext(request));
+    setRefreshCookie(reply, rotated.refreshToken, rotated.maxAgeSeconds);
+    const payload: AuthSession = await buildAuthSession(rotated.user, rotated.accessToken);
+    await reply.send({ data: payload });
+  } catch (error) {
+    clearRefreshCookie(reply);
+    throw error;
+  }
+};
+
+const logout = async (request: FastifyRequest, reply: FastifyReply): Promise<void> => {
+  const token = refreshCookie(request);
+  if (token !== null) {
+    await revokeSessionByToken(token);
+  }
+  clearRefreshCookie(reply);
+  await reply.send({ data: null });
+};
+
+const logoutAll = async (request: FastifyRequest, reply: FastifyReply): Promise<void> => {
+  const token = refreshCookie(request);
+  const session = token === null ? null : await findActiveSessionByToken(token);
+  clearRefreshCookie(reply);
+  if (session === null) {
+    throw new AppError("REFRESH_TOKEN_INVALID");
+  }
+  await revokeAllUserSessions(session.userId);
+  await reply.send({ data: null });
+};
+
+const resetRequest = async (request: FastifyRequest, reply: FastifyReply): Promise<void> => {
+  const input = validateInput(resetPasswordRequestInput, request.body);
+  await requestPasswordReset(input.email, request.ip);
+  await reply.send({ data: null });
+};
+
+const resetConfirm = async (request: FastifyRequest, reply: FastifyReply): Promise<void> => {
+  const input = validateInput(resetPasswordConfirmInput, request.body);
+  await confirmPasswordReset(input);
+  clearRefreshCookie(reply);
+  await reply.send({ data: null });
 };
 
 export const registerAuthRoutes = async (app: FastifyInstance): Promise<void> => {
@@ -168,4 +242,10 @@ export const registerAuthRoutes = async (app: FastifyInstance): Promise<void> =>
   app.post("/auth/register/code/resend", { preHandler: cookieRouteGuard }, resendRegistrationCode);
   app.post("/auth/register/password", { preHandler: apiGuard }, registerPassword);
   app.post("/auth/register/name", { preHandler: authGuard }, finishRegistration);
+  app.post("/auth/login", { preHandler: cookieRouteGuard }, login);
+  app.post("/auth/refresh", { preHandler: cookieRouteGuard }, refresh);
+  app.post("/auth/logout", { preHandler: cookieRouteGuard }, logout);
+  app.post("/auth/logout-all", { preHandler: cookieRouteGuard }, logoutAll);
+  app.post("/auth/reset/request", { preHandler: apiGuard }, resetRequest);
+  app.post("/auth/reset/confirm", { preHandler: cookieRouteGuard }, resetConfirm);
 };
