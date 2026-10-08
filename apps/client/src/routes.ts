@@ -12,5 +12,3 @@ export const paths = {
   friends: "/friends",
   settings: "/settings"
 } as const;
-
-export const userProfilePath = (publicId: string): string => `/users/${encodeURIComponent(publicId)}`;
