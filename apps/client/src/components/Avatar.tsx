@@ -14,7 +14,6 @@ export const Avatar = ({ name, url, size = 44, online = false, className }: Avat
     <span
       className={["avatar", className].filter(Boolean).join(" ")}
       style={{ width: `${size}px`, height: `${size}px` }}
-      aria-hidden={url !== null}
     >
       {url !== null ? (
         <img src={url} alt={name ?? ""} />
