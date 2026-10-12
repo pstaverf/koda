@@ -86,6 +86,10 @@ export const ResetPassword = () => {
     }
   });
 
+  const requestEmailError = asErrorCode(request.formState.errors.email?.message);
+  const passwordError = asErrorCode(confirm.formState.errors.password?.message);
+  const confirmationError = asErrorCode(confirm.formState.errors.passwordConfirmation?.message);
+
   return (
     <div className="screen-center">
       <GlassPanel variant="strong" className="register-card">
@@ -103,7 +107,7 @@ export const ResetPassword = () => {
               label={strings.reset.emailLabel}
               htmlFor="reset-email"
               hint={strings.reset.hint}
-              error={asErrorCode(request.formState.errors.email?.message)}
+              error={requestEmailError}
             >
               <GlassInput
                 id="reset-email"
@@ -112,10 +116,10 @@ export const ResetPassword = () => {
                 autoComplete="email"
                 placeholder="name@example.com"
                 icon={Mail}
-                invalid={request.formState.errors.email !== undefined}
+                invalid={requestEmailError !== undefined}
                 {...request.register("email", {
                   validate: (value) =>
-                    emailSchema.safeParse(value).success ? true : (strings.login.emailRequired as string)
+                    value.trim().length === 0 ? "FIELD_REQUIRED" : emailSchema.safeParse(value).success ? true : "EMAIL_INVALID"
                 })}
               />
             </Field>
@@ -139,23 +143,24 @@ export const ResetPassword = () => {
               invalid={confirm.formState.errors.code !== undefined}
               onChange={(value) => confirm.setValue("code", value, { shouldValidate: true })}
             />
-            <Field label={strings.reset.passwordLabel} htmlFor="reset-password">
+            <Field label={strings.reset.passwordLabel} htmlFor="reset-password" error={passwordError}>
               <PasswordField
                 id="reset-password"
                 autoComplete="new-password"
+                invalid={passwordError !== undefined}
                 {...confirm.register("password", {
                   validate: (value) => (passwordSchema.safeParse(value).success ? true : "PASSWORD_INVALID")
                 })}
               />
             </Field>
             <PasswordStrength password={password} onScore={setScore} />
-            <Field label={strings.reset.confirmationLabel} htmlFor="reset-password-confirmation">
+            <Field label={strings.reset.confirmationLabel} htmlFor="reset-password-confirmation" error={confirmationError}>
               <PasswordField
                 id="reset-password-confirmation"
                 autoComplete="new-password"
+                invalid={confirmationError !== undefined}
                 {...confirm.register("passwordConfirmation", {
-                  validate: (value) =>
-                    value === confirm.getValues("password") ? true : "PASSWORD_MISMATCH"
+                  validate: (value) => (value === confirm.getValues("password") ? true : "PASSWORD_MISMATCH")
                 })}
               />
             </Field>

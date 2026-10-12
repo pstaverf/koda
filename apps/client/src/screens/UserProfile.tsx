@@ -13,6 +13,8 @@ import { paths } from "../routes.js";
 import { errorText, strings } from "../strings.js";
 import { useProfileStore } from "../store/profile.js";
 
+const hiddenBanner = { bannerUrl: null, bannerStyle: null };
+
 export const UserProfile = () => {
   const navigate = useNavigate();
   const params = useParams();
@@ -31,23 +33,21 @@ export const UserProfile = () => {
     }
   }, [query.data, setViewed]);
 
-  const data = query.data ?? view ?? null;
-
   if (query.isError) {
     return (
-      <div className="screen-center">
-        <GlassPanel variant="strong" className="upcoming">
-          <h1 className="title-3">{strings.user.notFound}</h1>
-          <p className="text-secondary">
-            {errorText(query.error instanceof ApiError ? query.error.code : "NOT_FOUND")}
-          </p>
-          <GlassButton variant="primary" onClick={() => navigate(paths.friends)}>
-            {strings.user.toFriends}
-          </GlassButton>
-        </GlassPanel>
-      </div>
+      <GlassPanel variant="strong" className="profile-view">
+        <h1 className="title-3">{strings.user.notFound}</h1>
+        <p className="text-secondary">
+          {errorText(query.error instanceof ApiError ? query.error.code : "NOT_FOUND")}
+        </p>
+        <GlassButton variant="primary" onClick={() => navigate(paths.friends)}>
+          {strings.user.toFriends}
+        </GlassButton>
+      </GlassPanel>
     );
   }
+
+  const data = query.data ?? view ?? null;
 
   if (data === null) {
     return (
@@ -57,38 +57,47 @@ export const UserProfile = () => {
     );
   }
 
+  const online = data.presence.status === "online";
+  const presenceText = online
+    ? strings.user.online
+    : data.presence.lastSeen.hidden
+      ? strings.user.lastSeenHidden
+      : (data.presence.lastSeen.text ?? strings.user.offline);
+
   return (
     <div className="page">
       <GlassButton variant="ghost" icon={ArrowLeft} onClick={() => navigate(-1)}>
         {strings.common.back}
       </GlassButton>
       <section className="profile-card glass-flat">
-        {data.bannerVisible ? <Banner user={data.user} height={160} /> : <div className="banner" style={{ height: "160px" }} />}
+        <Banner user={data.bannerVisible ? data.user : hiddenBanner} height={160} />
         <div className="profile-card-body">
           <Avatar
             name={data.user.displayName}
+            publicId={data.user.publicId}
             url={data.user.avatarUrl}
             size={96}
-            online={data.presence.status === "online"}
+            online={online}
             className="profile-avatar"
           />
           <div className="profile-card-text">
-            <h1 className="title-2">{data.user.displayName}</h1>
+            <h1 className="title-2">{data.user.displayName ?? data.user.publicId}</h1>
             <span className="text-tertiary text-mono">{data.user.publicId}</span>
           </div>
         </div>
       </section>
       <GlassPanel className="profile-view">
         <p className="profile-status">
-          <span className={["status-dot", data.presence.status === "online" ? "is-online" : null].filter(Boolean).join(" ")} />
-          {data.presence.status === "online"
-            ? strings.user.online
-            : data.presence.lastSeen.hidden
-              ? strings.user.lastSeenHidden
-              : data.presence.lastSeen.text ?? strings.user.offline}
+          <span className={["status-dot", online ? "is-online" : null].filter(Boolean).join(" ")} />
+          {presenceText}
         </p>
-        {data.bioVisible && data.user.bio !== null ? <p>{data.user.bio}</p> : <p className="text-tertiary">{strings.user.bioHidden}</p>}
-        {data.blockedByMe ? <p className="profile-note">{strings.user.blocked}</p> : null}
+        {data.blockedByMe ? (
+          <p className="profile-note">{strings.user.blocked}</p>
+        ) : data.bioVisible ? (
+          data.user.bio === null ? null : <p>{data.user.bio}</p>
+        ) : (
+          <p className="text-tertiary">{strings.user.bioHidden}</p>
+        )}
         <p className="text-secondary">{strings.user.relations[data.relation]}</p>
       </GlassPanel>
     </div>

@@ -1,5 +1,6 @@
 import { Compass } from "lucide-react";
 import { createBrowserRouter, Navigate, Outlet, useLocation, useNavigate } from "react-router";
+import { AppShell } from "./components/AppShell.js";
 import { GlassButton } from "./components/GlassButton.js";
 import { GlassPanel } from "./components/GlassPanel.js";
 import { KodaLogo } from "./components/KodaLogo.js";
@@ -74,6 +75,13 @@ const HomeRedirect = () => {
   return <Navigate to={status === "authenticated" ? paths.profile : paths.login} replace />;
 };
 
+const SectionPending = ({ title }: { title: string }) => (
+  <GlassPanel className="profile-view">
+    <h1 className="title-3">{title}</h1>
+    <p className="text-secondary">{strings.nav.pending}</p>
+  </GlassPanel>
+);
+
 const NotFound = () => {
   const navigate = useNavigate();
   return (
@@ -121,8 +129,15 @@ export const router = createBrowserRouter([
         element: <RegisterLayout />,
         children: [{ index: true, element: <NameStep /> }]
       },
-      { path: paths.profile, element: <Profile /> },
-      { path: paths.profileUser, element: <UserProfile /> }
+      {
+        element: <AppShell />,
+        children: [
+          { path: paths.profile, element: <Profile /> },
+          { path: paths.profileUser, element: <UserProfile /> },
+          { path: paths.friends, element: <SectionPending title={strings.nav.friends} /> },
+          { path: paths.settings, element: <SectionPending title={strings.nav.settings} /> }
+        ]
+      }
     ]
   },
   { path: "*", element: <NotFound /> }

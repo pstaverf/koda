@@ -1,29 +1,35 @@
-import { UserRound } from "lucide-react";
+import { avatarPlaceholderColor, avatarPlaceholderLetter } from "@koda/shared/constants";
 
 type AvatarProps = {
   name: string | null;
+  publicId: string;
   url: string | null;
   size?: number;
   online?: boolean;
   className?: string;
 };
 
-export const Avatar = ({ name, url, size = 44, online = false, className }: AvatarProps) => {
-  const initial = name?.trim().slice(0, 1).toUpperCase() ?? "";
+export const Avatar = ({ name, publicId, url, size = 44, online = false, className }: AvatarProps) => {
+  const classes = ["avatar", className].filter(Boolean).join(" ");
+  const dimensions = { width: `${size}px`, height: `${size}px` };
+  if (url !== null) {
+    return (
+      <span className={classes} style={dimensions}>
+        <img src={url} alt={name ?? ""} />
+        {online ? <span className="avatar-online" /> : null}
+      </span>
+    );
+  }
   return (
     <span
-      className={["avatar", className].filter(Boolean).join(" ")}
-      style={{ width: `${size}px`, height: `${size}px` }}
+      className={classes}
+      style={{ ...dimensions, background: avatarPlaceholderColor(publicId), color: "#FFFFFF" }}
+      role="img"
+      aria-label={name ?? publicId}
     >
-      {url !== null ? (
-        <img src={url} alt={name ?? ""} />
-      ) : initial.length > 0 ? (
-        <span className="avatar-initial" style={{ fontSize: `${Math.round(size * 0.4)}px` }}>
-          {initial}
-        </span>
-      ) : (
-        <UserRound size={Math.round(size * 0.55)} strokeWidth={1.75} aria-hidden="true" />
-      )}
+      <span className="avatar-initial" style={{ fontSize: `${Math.round(size * 0.4)}px` }}>
+        {avatarPlaceholderLetter(name ?? "")}
+      </span>
       {online ? <span className="avatar-online" /> : null}
     </span>
   );

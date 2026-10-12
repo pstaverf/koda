@@ -60,6 +60,10 @@ export const Login = () => {
         setError("email", { type: "validate", message: issue.message });
         return;
       }
+      if (issue !== undefined && issue.path[0] === "password") {
+        setError("password", { type: "validate", message: issue.message });
+        return;
+      }
       toast.error(errorText("VALIDATION_FAILED"));
       return;
     }
@@ -85,6 +89,7 @@ export const Login = () => {
   });
 
   const emailError = asErrorCode(formState.errors.email?.message);
+  const passwordError = asErrorCode(formState.errors.password?.message);
 
   return (
     <div className="screen-center">
@@ -106,14 +111,15 @@ export const Login = () => {
               placeholder="name@example.com"
               icon={Mail}
               invalid={emailError !== undefined}
-              {...register("email", { required: strings.login.emailRequired })}
+              {...register("email", { required: "FIELD_REQUIRED" })}
             />
           </Field>
-          <Field label={strings.login.passwordLabel} htmlFor="login-password">
+          <Field label={strings.login.passwordLabel} htmlFor="login-password" error={passwordError}>
             <PasswordField
               id="login-password"
               autoComplete="current-password"
-              {...register("password", { required: strings.login.passwordRequired })}
+              invalid={passwordError !== undefined}
+              {...register("password", { required: "FIELD_REQUIRED" })}
             />
           </Field>
           {captchaRequired ? (

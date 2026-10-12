@@ -37,7 +37,8 @@ export const strings = {
   nav: {
     profile: "Профиль",
     friends: "Друзья",
-    settings: "Настройки"
+    settings: "Настройки",
+    pending: "Раздел появится в следующих обновлениях"
   },
   emoji: {
     title: "Эмодзи",

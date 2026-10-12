@@ -32,7 +32,7 @@ export const Sidebar = () => {
     <aside className="sidebar glass-flat">
       {user === null ? null : (
         <NavLink className="sidebar-user glass-interactive" to={paths.profile}>
-          <Avatar name={user.displayName} url={user.avatarUrl} size={44} />
+          <Avatar name={user.displayName} publicId={user.publicId} url={user.avatarUrl} size={44} />
           <span className="sidebar-user-text">
             <span className="sidebar-user-name">{user.displayName ?? user.publicId}</span>
             <span className="text-tertiary text-mono">{user.publicId}</span>
@@ -46,8 +46,12 @@ export const Sidebar = () => {
             to={item.to}
             className={({ isActive }) => ["sidebar-link", isActive ? "is-active" : null].filter(Boolean).join(" ")}
           >
-            <item.icon size={20} strokeWidth={1.75} aria-hidden="true" />
-            <span>{item.label}</span>
+            {({ isActive }) => (
+              <>
+                <item.icon size={20} strokeWidth={1.75} fill={isActive ? "currentColor" : "none"} aria-hidden="true" />
+                <span>{item.label}</span>
+              </>
+            )}
           </NavLink>
         ))}
       </nav>

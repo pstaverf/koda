@@ -17,8 +17,12 @@ export const BottomNav = () => (
         to={item.to}
         className={({ isActive }) => ["bottom-nav-link", isActive ? "is-active" : null].filter(Boolean).join(" ")}
       >
-        <item.icon size={24} strokeWidth={1.75} aria-hidden="true" />
-        <span>{item.label}</span>
+        {({ isActive }) => (
+          <>
+            <item.icon size={24} strokeWidth={1.75} fill={isActive ? "currentColor" : "none"} aria-hidden="true" />
+            <span>{item.label}</span>
+          </>
+        )}
       </NavLink>
     ))}
   </nav>

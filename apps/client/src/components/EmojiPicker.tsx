@@ -1,4 +1,4 @@
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, type ReactElement } from "react";
 import { Modal } from "./Modal.js";
 import { Spinner } from "./Spinner.js";
 import { strings } from "../strings.js";
@@ -9,12 +9,13 @@ type EmojiPicked = {
 
 type PickerComponent = (props: {
   data: unknown;
+  set: string;
   theme: string;
   locale: string;
   previewPosition: string;
   skinTonePosition: string;
   onEmojiSelect: (emoji: EmojiPicked) => void;
-}) => JSX.Element;
+}) => ReactElement;
 
 const LazyPicker = lazy(async () => {
   const [picker, data] = await Promise.all([import("@emoji-mart/react"), import("@emoji-mart/data")]);
@@ -23,10 +24,11 @@ const LazyPicker = lazy(async () => {
     default: (props: { onSelect: (native: string) => void; onClose: () => void }) => (
       <Picker
         data={data.default}
+        set="apple"
         theme="dark"
         locale="ru"
         previewPosition="none"
-        skinTonePosition="none"
+        skinTonePosition="search"
         onEmojiSelect={(emoji) => {
           props.onSelect(emoji.native);
           props.onClose();

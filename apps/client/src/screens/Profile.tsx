@@ -1,15 +1,16 @@
+import { bannerPalette } from "@koda/shared/constants";
 import { bioSchema, displayNameSchema, type BannerStyleValue, type CurrentUser } from "@koda/shared/profile";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ImageUp, LogOut, Smile, Trash2 } from "lucide-react";
+import { ImageUp, LogOut, Trash2 } from "lucide-react";
 import { useRef, useState } from "react";
 import { useNavigate } from "react-router";
 import { logout } from "../api/auth.js";
+import { ApiError } from "../api/http.js";
 import { deleteAvatar, deleteBanner, uploadAvatar, uploadBanner } from "../api/media.js";
 import { fetchOwnProfile, updateOwnProfile } from "../api/profile.js";
-import { ApiError } from "../api/http.js";
 import { Avatar } from "../components/Avatar.js";
 import { Banner } from "../components/Banner.js";
-import { EmojiPicker } from "../components/EmojiPicker.js";
+import { EmojiButton } from "../components/EmojiButton.js";
 import { Field } from "../components/Field.js";
 import { GlassButton } from "../components/GlassButton.js";
 import { GlassInput } from "../components/GlassInput.js";
@@ -23,13 +24,6 @@ import { asErrorCode, errorText, strings, type ClientErrorCode } from "../string
 import { useSessionStore } from "../store/session.js";
 import { toast } from "../store/toasts.js";
 
-const bannerPresets: BannerStyleValue[] = [
-  { type: "color", value: "#0A84FF" },
-  { type: "gradient", from: "#0A84FF", to: "#7C6CFF", angle: 135 },
-  { type: "gradient", from: "#38D6C4", to: "#0A84FF", angle: 120 },
-  { type: "gradient", from: "#7C6CFF", to: "#FF453A", angle: 160 }
-];
-
 const presetBackground = (preset: BannerStyleValue): string => {
   if (preset.type === "color") {
     return preset.value;
@@ -38,6 +32,14 @@ const presetBackground = (preset: BannerStyleValue): string => {
 };
 
 type CropTarget = "avatar" | "banner";
+
+type UploadInput = {
+  target: CropTarget;
+  blob: Blob;
+};
+
+const failureCodeOf = (failure: Error): ClientErrorCode =>
+  failure instanceof ApiError ? failure.code : "UNKNOWN_ERROR";
 
 export const Profile = () => {
   const navigate = useNavigate();
@@ -48,7 +50,6 @@ export const Profile = () => {
   const bannerInput = useRef<HTMLInputElement>(null);
   const [name, setName] = useState(sessionUser?.displayName ?? "");
   const [bio, setBio] = useState(sessionUser?.bio ?? "");
-  const [emojiOpen, setEmojiOpen] = useState(false);
   const [crop, setCrop] = useState<{ target: CropTarget; file: File; url: string } | null>(null);
 
   const profile = useQuery({
@@ -70,10 +71,7 @@ export const Profile = () => {
       queryClient.setQueryData(["profile"], updated);
       toast.success(strings.profile.saved);
     },
-    onError: (failure: Error) => {
-      const failureCode: ClientErrorCode = failure instanceof ApiError ? failure.code : "UNKNOWN_ERROR";
-      toast.error(errorText(failureCode));
-    }
+    onError: (failure: Error) => toast.error(errorText(failureCodeOf(failure)))
   });
 
   const applyPreset = useMutation({
@@ -83,16 +81,16 @@ export const Profile = () => {
       queryClient.setQueryData(["profile"], updated);
       toast.success(strings.profile.bannerUpdated);
     },
-    onError: (failure: Error) => toast.error(errorText(failure instanceof ApiError ? failure.code : "UNKNOWN_ERROR"))
+    onError: (failure: Error) => toast.error(errorText(failureCodeOf(failure)))
   });
 
   const applyUpload = useMutation({
-    mutationFn: async (blob: Blob): Promise<void> => {
-      if (crop?.target === "banner") {
-        await uploadBanner(blob);
+    mutationFn: async (input: UploadInput): Promise<void> => {
+      if (input.target === "banner") {
+        await uploadBanner(input.blob);
         return;
       }
-      await uploadAvatar(blob);
+      await uploadAvatar(input.blob);
     },
     onSuccess: async () => {
       const fresh = await fetchOwnProfile();
@@ -100,7 +98,7 @@ export const Profile = () => {
       queryClient.setQueryData(["profile"], fresh);
       toast.success(strings.profile.photoUpdated);
     },
-    onError: (failure: Error) => toast.error(errorText(failure instanceof ApiError ? failure.code : "UNKNOWN_ERROR"))
+    onError: (failure: Error) => toast.error(errorText(failureCodeOf(failure)))
   });
 
   const removeImage = useMutation({
@@ -117,11 +115,17 @@ export const Profile = () => {
       queryClient.setQueryData(["profile"], fresh);
       toast.success(strings.profile.photoRemoved);
     },
-    onError: (failure: Error) => toast.error(errorText(failure instanceof ApiError ? failure.code : "UNKNOWN_ERROR"))
+    onError: (failure: Error) => toast.error(errorText(failureCodeOf(failure)))
   });
 
   const signOut = async (): Promise<void> => {
-    await logout();
+    try {
+      await logout();
+    } catch {
+      toast.error(strings.common.retry);
+      return;
+    }
+    toast.success(strings.profile.loggedOut);
     navigate(paths.login, { replace: true });
   };
 
@@ -145,9 +149,7 @@ export const Profile = () => {
     );
   }
 
-  const nameError = asErrorCode(
-    displayNameSchema.safeParse(name).success ? undefined : "DISPLAY_NAME_INVALID"
-  );
+  const nameError = asErrorCode(displayNameSchema.safeParse(name).success ? undefined : "DISPLAY_NAME_INVALID");
   const bioError = asErrorCode(bioSchema.safeParse(bio).success ? undefined : "BIO_TOO_LONG");
 
   return (
@@ -155,7 +157,13 @@ export const Profile = () => {
       <section className="profile-card glass-flat">
         <Banner user={user} height={160} />
         <div className="profile-card-body">
-          <Avatar name={user.displayName} url={user.avatarUrl} size={96} className="profile-avatar" />
+          <Avatar
+            name={user.displayName}
+            publicId={user.publicId}
+            url={user.avatarUrl}
+            size={96}
+            className="profile-avatar"
+          />
           <div className="profile-card-text">
             <h1 className="title-2">{user.displayName ?? user.publicId}</h1>
             <span className="text-tertiary text-mono">{user.publicId}</span>
@@ -184,11 +192,16 @@ export const Profile = () => {
               invalid={bioError !== undefined}
               onChange={(event) => setBio(event.target.value)}
             />
-            <GlassButton icon={Smile} iconOnly aria-label={strings.emoji.open} onClick={() => setEmojiOpen(true)} />
+            <EmojiButton onSelect={(native) => setBio((current) => `${current}${native}`)} />
           </div>
         </Field>
         <div className="profile-actions">
-          <GlassButton variant="primary" loading={save.isPending} disabled={nameError !== undefined || bioError !== undefined} onClick={() => save.mutate()}>
+          <GlassButton
+            variant="primary"
+            loading={save.isPending}
+            disabled={nameError !== undefined || bioError !== undefined}
+            onClick={() => save.mutate()}
+          >
             {strings.common.save}
           </GlassButton>
           <GlassButton icon={ImageUp} onClick={() => avatarInput.current?.click()}>
@@ -208,24 +221,27 @@ export const Profile = () => {
       <GlassPanel className="profile-fields">
         <h2 className="title-3">{strings.profile.bannerTitle}</h2>
         <div className="banner-presets">
-          {bannerPresets.map((preset) => (
+          {bannerPalette.map((entry) => (
             <button
-              key={presetBackground(preset)}
+              key={entry.id}
               type="button"
               className={[
                 "banner-preset",
-                user.bannerUrl === null && JSON.stringify(user.bannerStyle) === JSON.stringify(preset) ? "is-active" : null
+                user.bannerUrl === null && JSON.stringify(user.bannerStyle) === JSON.stringify(entry.style)
+                  ? "is-active"
+                  : null
               ]
                 .filter(Boolean)
                 .join(" ")}
-              style={{ background: presetBackground(preset) }}
+              style={{ background: presetBackground(entry.style) }}
               aria-label={strings.profile.bannerTitle}
-              onClick={() => applyPreset.mutate(preset)}
+              disabled={applyPreset.isPending}
+              onClick={() => applyPreset.mutate(entry.style)}
             />
           ))}
         </div>
         <div className="profile-actions">
-          <GlassButton icon={ImageUp} loading={applyUpload.isPending} onClick={() => bannerInput.current?.click()}>
+          <GlassButton icon={ImageUp} onClick={() => bannerInput.current?.click()}>
             {strings.profile.bannerUpload}
           </GlassButton>
           <GlassButton
@@ -266,12 +282,6 @@ export const Profile = () => {
         }}
       />
 
-      <EmojiPicker
-        open={emojiOpen}
-        onClose={() => setEmojiOpen(false)}
-        onSelect={(native) => setBio((current) => `${current}${native}`)}
-      />
-
       {crop === null ? null : (
         <ImageCropper
           file={crop.file}
@@ -279,7 +289,11 @@ export const Profile = () => {
           title={crop.target === "banner" ? strings.profile.cropBanner : strings.profile.cropAvatar}
           onCancel={() => setCrop(null)}
           onApply={async (blob) => {
-            await applyUpload.mutateAsync(blob);
+            try {
+              await applyUpload.mutateAsync({ target: crop.target, blob });
+            } catch {
+              return;
+            }
             setCrop(null);
           }}
         />
