@@ -9,6 +9,8 @@
   - `pnpm-workspace.yaml`
   - `PROJECT_TREE.md`
   - `tsconfig.base.json`
+  - `seaweedfs/`
+    - `s3.json`
   - `packages/shared/`
     - `package.json`
     - `tsconfig.json`
@@ -130,7 +132,6 @@
       - `store/appearance.ts`
       - `lib/queryClient.ts`
       - `lib/timezone.ts`
-      - `lib/urls.ts`
       - `lib/files.ts`
       - `components/AppShell.tsx`
       - `components/Avatar.tsx`
@@ -157,7 +158,6 @@
       - `components/Steps.tsx`
       - `components/Toasts.tsx`
       - `components/Turnstile.tsx`
-      - `screens/UpcomingScreen.tsx`
       - `screens/Login.tsx`
       - `screens/ResetPassword.tsx`
       - `screens/Profile.tsx`
@@ -186,6 +186,27 @@
       - `test/privacy.form.test.ts`
       - `test/register.code.test.tsx`
 
+## Инфраструктура
+
+- PostgreSQL 17 (`postgres:17-alpine`) — основная база данных.
+- Redis 8 (`redis:8-alpine`) — сессии, лимиты, присутствие, Pub/Sub WebSocket.
+- SeaweedFS 4.48 (`chrislusf/seaweedfs:4.48`) — S3-совместимое хранилище медиа; конфигурация ключей в `seaweedfs/s3.json`, S3 API на порту 8333, веб-интерфейс на порту 8888.
+- `seaweedfs-init` (`amazon/aws-cli:2.37.11`) — однократно создаёт бакет `koda` командой `aws --endpoint-url http://seaweedfs:8333 s3 mb s3://koda` с теми же ключами, что и SeaweedFS.
+- Mailpit v1.31.4 — локальный SMTP и веб-почта для писем регистрации и сброса пароля.
+- MinIO заменён на SeaweedFS: сервис, порты, переменные окружения и ключи доступа перенесены на SeaweedFS; клиентский код и API медиа не менялись.
+
+## Маршруты клиента
+
+- `/login` — вход
+- `/register`, `/register/code`, `/register/password`, `/register/photo`, `/register/name` — регистрация по шагам
+- `/reset` — сброс пароля
+- `/profile` — свой профиль
+- `/users/:publicId` — профиль пользователя
+- `/friends` — друзья, входящие и исходящие заявки
+- `/settings` — настройки с разделами профиля, приватности, безопасности, сеансов, оформления и сведений о приложении
+
+Пути описаны в `apps/client/src/routes.ts`; `router.tsx` и экраны регистрации импортируют их оттуда.
+
 ## Подготовка
 
 - `cp -n .env.example .env`
@@ -197,8 +218,12 @@
 ## Окружение
 
 - `COOKIE_SECURE=false` допустим только для локальной разработки; в production должно быть `COOKIE_SECURE=true`, иначе сервер не стартует.
-- `ALLOWED_ORIGINS` принимает адреса клиента через запятую; при работе через туннель в список добавляется его внешний адрес.
-- `S3_ENDPOINT` — адрес MinIO для запросов сервера; `S3_PUBLIC_ENDPOINT` — адрес, попадающий в presigned-ссылки, то есть доступный из браузера; пустое значение означает `S3_ENDPOINT`.
+- `TRUST_PROXY=false` по умолчанию; включать только за доверенным обратным прокси.
+- `PORT=4000` — единственный порт сервера.
+- `ALLOWED_ORIGINS` принимает адреса клиента через запятую; по умолчанию `http://localhost:5173`. При работе через туннель его внешний адрес добавляется в список, например `http://localhost:5173,https://<tunnel-host>`.
+- `S3_ENDPOINT` — адрес SeaweedFS S3 для запросов сервера (`http://localhost:8333`).
+- `S3_PUBLIC_ENDPOINT` — адрес, попадающий в presigned-ссылки и доступный из браузера; пустое значение означает `S3_ENDPOINT`. Для туннеля задаётся отдельно от `S3_ENDPOINT`.
+- Presigned GET подписывается публичным адресом; запросы put и delete сервер выполняет через внутренний `S3_ENDPOINT`.
 
 ## Схема Redis
 

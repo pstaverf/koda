@@ -1,5 +1,11 @@
 import { bannerPalette } from "@koda/shared/constants";
-import { bioSchema, displayNameSchema, type BannerStyleValue, type CurrentUser } from "@koda/shared/profile";
+import {
+  bioSchema,
+  displayNameSchema,
+  type BannerStyle,
+  type BannerStyleValue,
+  type CurrentUser
+} from "@koda/shared/profile";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ImageUp, LogOut, Trash2 } from "lucide-react";
 import { useRef, useState } from "react";
@@ -29,6 +35,19 @@ const presetBackground = (preset: BannerStyleValue): string => {
     return preset.value;
   }
   return preset.type === "gradient" ? `linear-gradient(${preset.angle}deg, ${preset.from}, ${preset.to})` : "transparent";
+};
+
+const sameBannerStyle = (current: BannerStyle, preset: BannerStyleValue): boolean => {
+  if (current === null || current.type !== preset.type) {
+    return false;
+  }
+  if (current.type === "color" && preset.type === "color") {
+    return current.value === preset.value;
+  }
+  if (current.type === "gradient" && preset.type === "gradient") {
+    return current.from === preset.from && current.to === preset.to && current.angle === preset.angle;
+  }
+  return false;
 };
 
 type CropTarget = "avatar" | "banner";
@@ -227,7 +246,7 @@ export const Profile = () => {
               type="button"
               className={[
                 "banner-preset",
-                user.bannerUrl === null && JSON.stringify(user.bannerStyle) === JSON.stringify(entry.style)
+                user.bannerUrl === null && sameBannerStyle(user.bannerStyle, entry.style)
                   ? "is-active"
                   : null
               ]
